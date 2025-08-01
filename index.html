@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Trending Data Visualization</title>
+    <link rel="stylesheet" href="css/main.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>YouTube Trending Data Visualization</h1>
+            <p>Interactive visualizations of YouTube trending videos across different countries</p>
+        </header>
+
+        <nav class="navigation">
+            <button class="nav-btn active" data-viz="overview">Overview</button>
+            <button class="nav-btn" data-viz="bar-chart">Views by Country</button>
+            <button class="nav-btn" data-viz="pie-chart">Category Distribution</button>
+            <button class="nav-btn" data-viz="timeline">Trending Timeline</button>
+            <button class="nav-btn" data-viz="scatter">Views vs Likes</button>
+            <button class="nav-btn" data-viz="heatmap">Country Heatmap</button>
+            <button class="nav-btn" data-viz="treemap">Channel Treemap</button>
+            <button class="nav-btn" data-viz="engagement">Engagement Breakdown</button>
+        </nav>
+
+        <main class="visualization-container">
+            <div id="overview" class="visualization active">
+                <h2>Project Overview</h2>
+                <p>This project analyzes YouTube trending data from multiple countries including:</p>
+                <ul>
+                    <li>Canada (CA)</li>
+                    <li>Germany (DE)</li>
+                    <li>France (FR)</li>
+                    <li>Great Britain (GB)</li>
+                    <li>India (IN)</li>
+                    <li>Japan (JP)</li>
+                    <li>South Korea (KR)</li>
+                    <li>Mexico (MX)</li>
+                    <li>Russia (RU)</li>
+                    <li>United States (US)</li>
+                </ul>
+                <p>Navigate through different visualizations using the buttons above.</p>
+            </div>
+
+            <div id="bar-chart" class="visualization">
+                <h2>Average Views by Country</h2>
+                <div class="chart-container"></div>
+            </div>
+
+            <div id="pie-chart" class="visualization">
+                <h2>Video Category Distribution</h2>
+                <div class="chart-container"></div>
+            </div>
+
+            <div id="timeline" class="visualization">
+                <h2>Trending Videos Timeline</h2>
+                <div class="chart-container"></div>
+            </div>
+
+            <div id="scatter" class="visualization">
+                <h2>Views vs Likes Correlation</h2>
+                <div class="chart-container"></div>
+            </div>
+
+            <div id="heatmap" class="visualization">
+                <h2>Country Activity Heatmap</h2>
+                <div class="chart-container"></div>
+            </div>
+
+            <div id="treemap" class="visualization">
+                <h2>Top Channels Treemap</h2>
+                <div class="chart-container"></div>
+            </div>
+            <div id="engagement" class="visualization">
+                <h2>Engagement Breakdown</h2>
+                <div class="chart-container"></div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Data Visualization Project - Web Content Management</p>
+        </footer>
+    </div>
+
+    <script src="js/data-loader.js"></script>
+    <script src="js/visualizations.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
