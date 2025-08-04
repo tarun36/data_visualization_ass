@@ -15,7 +15,7 @@ class YouTubeDataVisualization {
         try {
             // Load data
             console.log('Initializing data loader...');
-            const success = await this.dataLoader.init(['US', 'CA', 'GB', 'DE', 'FR']);
+            const success = await this.dataLoader.init(['US', 'CA', 'GB', 'DE', 'FR', 'IN', 'JP', 'KR', 'MX', 'RU']);
             
             if (success) {
                 this.isDataLoaded = true;
@@ -44,6 +44,34 @@ class YouTubeDataVisualization {
             });
         });
 
+        // Handle country filter dropdowns
+        const countryFilter = document.getElementById('country-filter');
+        if (countryFilter) {
+            countryFilter.addEventListener('change', (e) => {
+                if (this.currentVisualization === 'pie-chart') {
+                    this.updatePieChartByCountry(e.target.value);
+                }
+            });
+        }
+
+        const timelineCountryFilter = document.getElementById('timeline-country-filter');
+        if (timelineCountryFilter) {
+            timelineCountryFilter.addEventListener('change', (e) => {
+                if (this.currentVisualization === 'timeline') {
+                    this.updateTimelineByCountry(e.target.value);
+                }
+            });
+        }
+
+        const scatterCountryFilter = document.getElementById('scatter-country-filter');
+        if (scatterCountryFilter) {
+            scatterCountryFilter.addEventListener('change', (e) => {
+                if (this.currentVisualization === 'scatter') {
+                    this.updateScatterByCountry(e.target.value);
+                }
+            });
+        }
+
         // Handle window resize
         window.addEventListener('resize', () => {
             if (this.isDataLoaded && this.currentVisualization !== 'overview') {
@@ -54,6 +82,12 @@ class YouTubeDataVisualization {
                 }, 250);
             }
         });
+
+        // Setup treemap event listeners
+        this.setupTreemapEventListeners();
+        
+        // Setup engagement event listeners
+        this.setupEngagementEventListeners();
     }
 
     // Enable/disable navigation
@@ -63,6 +97,21 @@ class YouTubeDataVisualization {
             button.disabled = false;
             button.style.opacity = '1';
         });
+        
+        // Populate country filter dropdowns
+        this.populateCountryFilter();
+        this.populateTimelineCountryFilter();
+        this.populateScatterCountryFilter();
+        this.populateTreemapCountryFilter();
+        this.populateEngagementFilters();
+
+        // Re-render current visualization if it's the map
+        if (this.currentVisualization === 'network') {
+            const container = document.querySelector('#network .chart-container');
+            if (container) {
+                this.renderChoroplethMap(container);
+            }
+        }
     }
 
     disableNavigation() {
@@ -114,34 +163,37 @@ class YouTubeDataVisualization {
                     break;
 
                 case 'pie-chart':
-                    const categoryData = this.dataLoader.getCategoryDistribution();
-                    this.visualizations.createPieChart(categoryData, container);
+                    const selectedCountry = document.getElementById('country-filter')?.value || 'all';
+                    const categoryData = this.dataLoader.getCategoryDistributionByCountry(selectedCountry);
+                    this.visualizations.createPieChart(categoryData, container, selectedCountry);
                     break;
 
                 case 'scatter':
-                    const scatterData = this.dataLoader.getViewsVsLikes(300);
-                    this.visualizations.createScatterPlot(scatterData, container);
+                    const selectedScatterCountry = document.getElementById('scatter-country-filter')?.value || 'all';
+                    const scatterData = this.dataLoader.getViewsVsLikes(300, selectedScatterCountry);
+                    this.visualizations.createScatterPlot(scatterData, container, selectedScatterCountry);
                     break;
 
                 case 'timeline':
-                    const timelineData = this.dataLoader.getTimelineData();
-                    this.visualizations.createTimeline(timelineData, container);
+                    const selectedTimelineCountry = document.getElementById('timeline-country-filter')?.value || 'all';
+                    const timelineData = this.dataLoader.getTimelineDataByCountry(selectedTimelineCountry);
+                    this.visualizations.createTimeline(timelineData, container, selectedTimelineCountry);
                     break;
 
                 case 'heatmap':
-                    const heatmapData = this.dataLoader.getViewsByCountry();
+                    const heatmapData = this.dataLoader.getHeatmapData();
                     this.visualizations.createHeatmap(heatmapData, container);
                     break;
 
                 case 'treemap':
-                    const treemapData = this.dataLoader.getTopChannels(15);
-                    this.visualizations.createTreemap(treemapData, container);
+                    this.renderTreemap(container);
                     break;
 
                 case 'engagement':
-                    const engagementData = this.dataLoader.getEngagementMetrics();
-                    this.visualizations.createDonutChart(engagementData, container);
+                    this.renderEngagement(container);
                     break;
+
+
 
                 default:
                     console.warn(`Unknown visualization type: ${vizType}`);
@@ -156,6 +208,125 @@ class YouTubeDataVisualization {
     renderCurrentVisualization() {
         if (this.currentVisualization && this.currentVisualization !== 'overview') {
             this.renderVisualization(this.currentVisualization);
+        }
+    }
+
+    // Populate country filter dropdown
+    populateCountryFilter() {
+        const countryFilter = document.getElementById('country-filter');
+        if (!countryFilter || !this.isDataLoaded) return;
+
+        // Clear existing options except "All Countries"
+        const allOption = countryFilter.querySelector('option[value="all"]');
+        countryFilter.innerHTML = '';
+        countryFilter.appendChild(allOption);
+
+        // Add country options
+        const countries = this.dataLoader.getAvailableCountries();
+        countries.forEach(country => {
+            const option = document.createElement('option');
+            option.value = country;
+            option.textContent = this.getCountryDisplayName(country);
+            countryFilter.appendChild(option);
+        });
+    }
+
+    // Get display name for country code
+    getCountryDisplayName(countryCode) {
+        const countryNames = {
+            'CA': 'Canada',
+            'DE': 'Germany', 
+            'FR': 'France',
+            'GB': 'Great Britain',
+            'IN': 'India',
+            'JP': 'Japan',
+            'KR': 'South Korea',
+            'MX': 'Mexico',
+            'RU': 'Russia',
+            'US': 'United States'
+        };
+        return countryNames[countryCode] || countryCode;
+    }
+
+    // Update pie chart based on selected country
+    updatePieChartByCountry(country) {
+        const container = document.querySelector('#pie-chart .chart-container');
+        if (!container) return;
+
+        try {
+            const categoryData = this.dataLoader.getCategoryDistributionByCountry(country);
+            this.visualizations.createPieChart(categoryData, container, country);
+        } catch (error) {
+            console.error(`Error updating pie chart for country ${country}:`, error);
+            this.showVisualizationError(container, `Error updating visualization: ${error.message}`);
+        }
+    }
+
+    // Populate timeline country filter dropdown
+    populateTimelineCountryFilter() {
+        const timelineCountryFilter = document.getElementById('timeline-country-filter');
+        if (!timelineCountryFilter || !this.isDataLoaded) return;
+
+        // Clear existing options except "All Countries"
+        const allOption = timelineCountryFilter.querySelector('option[value="all"]');
+        timelineCountryFilter.innerHTML = '';
+        timelineCountryFilter.appendChild(allOption);
+
+        // Add country options
+        const countries = this.dataLoader.getAvailableCountries();
+        countries.forEach(country => {
+            const option = document.createElement('option');
+            option.value = country;
+            option.textContent = this.getCountryDisplayName(country);
+            timelineCountryFilter.appendChild(option);
+        });
+    }
+
+    // Update timeline based on selected country
+    updateTimelineByCountry(country) {
+        const container = document.querySelector('#timeline .chart-container');
+        if (!container) return;
+
+        try {
+            const timelineData = this.dataLoader.getTimelineDataByCountry(country);
+            this.visualizations.createTimeline(timelineData, container, country);
+        } catch (error) {
+            console.error(`Error updating timeline for country ${country}:`, error);
+            this.showVisualizationError(container, `Error updating visualization: ${error.message}`);
+        }
+    }
+
+    // Populate scatter country filter dropdown
+    populateScatterCountryFilter() {
+        const scatterCountryFilter = document.getElementById('scatter-country-filter');
+        if (!scatterCountryFilter || !this.isDataLoaded) return;
+
+        // Clear existing options except "All Countries"
+        const allOption = scatterCountryFilter.querySelector('option[value="all"]');
+        scatterCountryFilter.innerHTML = '';
+        scatterCountryFilter.appendChild(allOption);
+
+        // Add country options
+        const countries = this.dataLoader.getAvailableCountries();
+        countries.forEach(country => {
+            const option = document.createElement('option');
+            option.value = country;
+            option.textContent = this.getCountryDisplayName(country);
+            scatterCountryFilter.appendChild(option);
+        });
+    }
+
+    // Update scatter plot based on selected country
+    updateScatterByCountry(country) {
+        const container = document.querySelector('#scatter .chart-container');
+        if (!container) return;
+
+        try {
+            const scatterData = this.dataLoader.getViewsVsLikes(300, country);
+            this.visualizations.createScatterPlot(scatterData, container, country);
+        } catch (error) {
+            console.error(`Error updating scatter plot for country ${country}:`, error);
+            this.showVisualizationError(container, `Error updating visualization: ${error.message}`);
         }
     }
 
@@ -282,6 +453,162 @@ class YouTubeDataVisualization {
         `;
         overview.appendChild(grid);
     }
+
+    // Render treemap with interactive controls
+    renderTreemap(container) {
+        try {
+            // Update channel count display
+            const totalChannels = this.dataLoader.getTotalChannelCount();
+            const channelCountDisplay = document.getElementById('channel-count-display');
+            if (channelCountDisplay) {
+                channelCountDisplay.textContent = totalChannels.toLocaleString();
+            }
+
+            // Get current filter values
+            const channelLimit = parseInt(document.getElementById('treemap-channel-limit')?.value || 25);
+            const selectedCountry = document.getElementById('treemap-country-filter')?.value || 'all';
+
+            // Get filtered data
+            let treemapData;
+            if (selectedCountry === 'all') {
+                treemapData = this.dataLoader.getTopChannels(channelLimit);
+            } else {
+                treemapData = this.dataLoader.getChannelsByCountry(selectedCountry, channelLimit);
+            }
+
+            this.visualizations.createTreemap(treemapData, container);
+        } catch (error) {
+            console.error('Error rendering treemap:', error);
+            this.showVisualizationError(container, `Error rendering treemap: ${error.message}`);
+        }
+    }
+
+    // Populate treemap country filter dropdown
+    populateTreemapCountryFilter() {
+        const treemapCountryFilter = document.getElementById('treemap-country-filter');
+        if (!treemapCountryFilter || !this.isDataLoaded) return;
+
+        // Clear existing options except "All Countries"
+        const allOption = treemapCountryFilter.querySelector('option[value="all"]');
+        treemapCountryFilter.innerHTML = '';
+        treemapCountryFilter.appendChild(allOption);
+
+        // Add country options
+        const countries = this.dataLoader.getAvailableCountries();
+        countries.forEach(country => {
+            const option = document.createElement('option');
+            option.value = country;
+            option.textContent = this.getCountryDisplayName(country);
+            treemapCountryFilter.appendChild(option);
+        });
+    }
+
+    // Setup treemap event listeners
+    setupTreemapEventListeners() {
+        const channelLimitSelect = document.getElementById('treemap-channel-limit');
+        const countryFilterSelect = document.getElementById('treemap-country-filter');
+
+        if (channelLimitSelect) {
+            channelLimitSelect.addEventListener('change', () => {
+                const container = document.querySelector('#treemap .chart-container');
+                if (container) {
+                    this.renderTreemap(container);
+                }
+            });
+        }
+
+        if (countryFilterSelect) {
+            countryFilterSelect.addEventListener('change', () => {
+                const container = document.querySelector('#treemap .chart-container');
+                if (container) {
+                    this.renderTreemap(container);
+                }
+            });
+        }
+    }
+
+    // Render engagement with filters
+    renderEngagement(container) {
+        try {
+            // Get current filter values
+            const selectedCountry = document.getElementById('engagement-country-filter')?.value || 'all';
+            const selectedCategory = document.getElementById('engagement-category-filter')?.value || 'all';
+
+            // Get filtered engagement data
+            const engagementData = this.dataLoader.getFilteredEngagementMetrics(
+                selectedCountry, 
+                selectedCategory
+            );
+
+            this.visualizations.createDonutChart(engagementData, container);
+        } catch (error) {
+            console.error('Error rendering engagement:', error);
+            this.showVisualizationError(container, `Error rendering engagement: ${error.message}`);
+        }
+    }
+
+    // Populate engagement filter dropdowns
+    populateEngagementFilters() {
+        // Populate country filter
+        const countryFilter = document.getElementById('engagement-country-filter');
+        if (countryFilter && this.isDataLoaded) {
+            const allOption = countryFilter.querySelector('option[value="all"]');
+            countryFilter.innerHTML = '';
+            countryFilter.appendChild(allOption);
+
+            const countries = this.dataLoader.getAvailableCountries();
+            countries.forEach(country => {
+                const option = document.createElement('option');
+                option.value = country;
+                option.textContent = this.getCountryDisplayName(country);
+                countryFilter.appendChild(option);
+            });
+        }
+
+        // Populate category filter
+        const categoryFilter = document.getElementById('engagement-category-filter');
+        if (categoryFilter && this.isDataLoaded) {
+            const allOption = categoryFilter.querySelector('option[value="all"]');
+            categoryFilter.innerHTML = '';
+            categoryFilter.appendChild(allOption);
+
+            const categories = this.dataLoader.getAvailableCategories();
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                categoryFilter.appendChild(option);
+            });
+        }
+    }
+
+    // Setup engagement event listeners
+    setupEngagementEventListeners() {
+        const countryFilter = document.getElementById('engagement-country-filter');
+        const categoryFilter = document.getElementById('engagement-category-filter');
+
+        if (countryFilter) {
+            countryFilter.addEventListener('change', () => {
+                const container = document.querySelector('#engagement .chart-container');
+                if (container) {
+                    this.renderEngagement(container);
+                }
+            });
+        }
+
+        if (categoryFilter) {
+            categoryFilter.addEventListener('change', () => {
+                const container = document.querySelector('#engagement .chart-container');
+                if (container) {
+                    this.renderEngagement(container);
+                }
+            });
+        }
+    }
+
+
+
+
 }
 
 // Initialize application when DOM is ready

@@ -1,40 +1,16 @@
 {
-  "name": "youtube-data-visualization-react",
+  "name": "youtube-data-visualization",
   "version": "1.0.0",
-  "private": true,
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "d3": "^7.8.5",
-    "@types/d3": "^7.4.0",
-    "recharts": "^2.8.0",
-    "web-vitals": "^3.3.2"
-  },
+  "description": "YouTube trending data visualization project",
+  "main": "index.html",
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "start": "http-server -p 3000 -o",
+    "dev": "http-server -p 3000 -o -c-1"
   },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
+  "keywords": ["data-visualization", "d3", "youtube", "trending"],
+  "author": "",
+  "license": "MIT",
   "devDependencies": {
-    "react-scripts": "5.0.1"
+    "http-server": "^14.1.1"
   }
-}
+} 

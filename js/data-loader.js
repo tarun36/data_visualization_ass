@@ -37,7 +37,7 @@ class DataLoader {
     }
 
     // Load video data for specific countries (limited for performance)
-    async loadVideoData(countriesToLoad = ['US', 'CA', 'GB']) {
+    async loadVideoData(countriesToLoad = ['US', 'CA', 'GB', 'DE', 'FR', 'IN', 'JP', 'KR', 'MX', 'RU']) {
         const videoPromises = countriesToLoad.map(async (country) => {
             try {
                 const response = await fetch(`data/${country}videos.csv`);
@@ -163,11 +163,39 @@ class DataLoader {
         return categoryCount;
     }
 
+    // Get category distribution for a specific country
+    getCategoryDistributionByCountry(country) {
+        if (country === 'all') {
+            return this.getCategoryDistribution();
+        }
+        
+        const categoryCount = {};
+        if (this.videoData[country]) {
+            this.videoData[country].forEach(video => {
+                const category = video.category_name;
+                categoryCount[category] = (categoryCount[category] || 0) + 1;
+            });
+        }
+        return categoryCount;
+    }
+
+    // Get list of available countries
+    getAvailableCountries() {
+        return Object.keys(this.videoData).sort();
+    }
+
     // Get views vs likes data for scatter plot
-    getViewsVsLikes(sampleSize = 500) {
-        const allVideos = Object.values(this.videoData).flat();
+    getViewsVsLikes(sampleSize = 500, country = 'all') {
+        let videos;
+        
+        if (country === 'all') {
+            videos = Object.values(this.videoData).flat();
+        } else {
+            videos = this.videoData[country] || [];
+        }
+        
         // Sample data for performance
-        const sampled = allVideos
+        const sampled = videos
             .filter(video => video.views > 0 && video.likes > 0)
             .sort(() => 0.5 - Math.random())
             .slice(0, sampleSize);
@@ -202,6 +230,33 @@ class DataLoader {
         return Object.values(timelineData).sort((a, b) => a.date - b.date);
     }
 
+    // Get timeline data for a specific country
+    getTimelineDataByCountry(country) {
+        if (country === 'all') {
+            return this.getTimelineData();
+        }
+        
+        const timelineData = {};
+        if (this.videoData[country]) {
+            this.videoData[country].forEach(video => {
+                if (video.trending_date_parsed) {
+                    const dateKey = video.trending_date_parsed.toISOString().split('T')[0];
+                    if (!timelineData[dateKey]) {
+                        timelineData[dateKey] = {
+                            date: video.trending_date_parsed,
+                            count: 0,
+                            totalViews: 0
+                        };
+                    }
+                    timelineData[dateKey].count++;
+                    timelineData[dateKey].totalViews += video.views;
+                }
+            });
+        }
+        
+        return Object.values(timelineData).sort((a, b) => a.date - b.date);
+    }
+
     // Get overall engagement metrics
     getEngagementMetrics() {
         const allVideos = Object.values(this.videoData).flat();
@@ -212,8 +267,173 @@ class DataLoader {
         };
     }
 
-    // Get top channels data for treemap
-    getTopChannels(limit = 20) {
+    // Get filtered engagement metrics
+    getFilteredEngagementMetrics(country = 'all', category = 'all') {
+        let filteredVideos = Object.values(this.videoData).flat();
+
+        // Filter by country
+        if (country !== 'all') {
+            filteredVideos = filteredVideos.filter(video => video.country === country);
+        }
+
+        // Filter by category
+        if (category !== 'all') {
+            filteredVideos = filteredVideos.filter(video => video.category_name === category);
+        }
+
+        return {
+            Likes: filteredVideos.reduce((sum, v) => sum + v.likes, 0),
+            Dislikes: filteredVideos.reduce((sum, v) => sum + v.dislikes, 0),
+            Comments: filteredVideos.reduce((sum, v) => sum + v.comment_count, 0)
+        };
+    }
+
+    // Get all available categories
+    getAvailableCategories() {
+        const categories = new Set();
+        Object.values(this.videoData).flat().forEach(video => {
+            if (video.category_name) {
+                categories.add(video.category_name);
+            }
+        });
+        return Array.from(categories).sort();
+    }
+
+    // Get top videos by views
+    getTopVideosByViews(limit = 10) {
+        const allVideos = Object.values(this.videoData).flat();
+        return allVideos
+            .sort((a, b) => b.views - a.views)
+            .slice(0, limit)
+            .map(video => ({
+                title: video.title.length > 30 ? video.title.substring(0, 30) + '...' : video.title,
+                views: video.views,
+                likes: video.likes,
+                comments: video.comment_count,
+                channel: video.channel_title,
+                country: video.country,
+                category: video.category_name
+            }));
+    }
+
+    // Get top channels by engagement
+    getTopChannelsByEngagement(limit = 10) {
+        const channelData = {};
+        Object.values(this.videoData).flat().forEach(video => {
+            const channel = video.channel_title;
+            if (!channelData[channel]) {
+                channelData[channel] = {
+                    name: channel,
+                    totalViews: 0,
+                    totalLikes: 0,
+                    totalComments: 0,
+                    videoCount: 0
+                };
+            }
+            channelData[channel].totalViews += video.views;
+            channelData[channel].totalLikes += video.likes;
+            channelData[channel].totalComments += video.comment_count;
+            channelData[channel].videoCount++;
+        });
+
+        return Object.values(channelData)
+            .map(channel => ({
+                name: channel.name.length > 20 ? channel.name.substring(0, 20) + '...' : channel.name,
+                engagementScore: (channel.totalLikes / channel.totalViews) * 100,
+                totalViews: channel.totalViews,
+                totalLikes: channel.totalLikes,
+                videoCount: channel.videoCount
+            }))
+            .sort((a, b) => b.engagementScore - a.engagementScore)
+            .slice(0, limit);
+    }
+
+    // Get category performance data
+    getCategoryPerformance() {
+        const categories = this.getAvailableCategories();
+        return categories.map(category => {
+            const categoryVideos = Object.values(this.videoData).flat()
+                .filter(video => video.category_name === category);
+            
+            if (categoryVideos.length > 0) {
+                const totalViews = categoryVideos.reduce((sum, v) => sum + v.views, 0);
+                const totalLikes = categoryVideos.reduce((sum, v) => sum + v.likes, 0);
+                const totalComments = categoryVideos.reduce((sum, v) => sum + v.comment_count, 0);
+                
+                return {
+                    category: category,
+                    totalViews: totalViews,
+                    totalLikes: totalLikes,
+                    totalComments: totalComments,
+                    videoCount: categoryVideos.length,
+                    avgViews: totalViews / categoryVideos.length
+                };
+            }
+            return null;
+        }).filter(item => item !== null)
+        .sort((a, b) => b.totalViews - a.totalViews);
+    }
+
+    // Get country performance data
+    getCountryPerformance() {
+        const countries = Object.keys(this.videoData);
+        return countries.map(country => {
+            const countryVideos = this.videoData[country] || [];
+            if (countryVideos.length > 0) {
+                const totalViews = countryVideos.reduce((sum, v) => sum + v.views, 0);
+                const totalLikes = countryVideos.reduce((sum, v) => sum + v.likes, 0);
+                const totalComments = countryVideos.reduce((sum, v) => sum + v.comment_count, 0);
+                
+                return {
+                    country: country,
+                    totalViews: totalViews,
+                    totalLikes: totalLikes,
+                    totalComments: totalComments,
+                    videoCount: countryVideos.length,
+                    avgViews: totalViews / countryVideos.length
+                };
+            }
+            return null;
+        }).filter(item => item !== null)
+        .sort((a, b) => b.totalViews - a.totalViews);
+    }
+
+    // Get country video counts for choropleth map
+    getCountryVideoCounts() {
+        const countryCounts = {};
+        Object.keys(this.videoData).forEach(country => {
+            countryCounts[country] = this.videoData[country].length;
+        });
+        return countryCounts;
+    }
+
+    // Get country display names mapping
+    getCountryDisplayNames() {
+        return {
+            'CA': 'Canada',
+            'DE': 'Germany', 
+            'FR': 'France',
+            'GB': 'United Kingdom',
+            'IN': 'India',
+            'JP': 'Japan',
+            'KR': 'South Korea',
+            'MX': 'Mexico',
+            'RU': 'Russia',
+            'US': 'United States'
+        };
+    }
+
+    // Get total number of unique channels
+    getTotalChannelCount() {
+        const uniqueChannels = new Set();
+        Object.values(this.videoData).flat().forEach(video => {
+            uniqueChannels.add(video.channel_title);
+        });
+        return uniqueChannels.size;
+    }
+
+    // Get all channels data (without limit)
+    getAllChannels() {
         const channelData = {};
         Object.values(this.videoData).flat().forEach(video => {
             const channel = video.channel_title;
@@ -235,12 +455,85 @@ class DataLoader {
                 ...channel,
                 countries: Array.from(channel.countries)
             }))
-            .sort((a, b) => b.totalViews - a.totalViews)
+            .sort((a, b) => b.totalViews - a.totalViews);
+    }
+
+    // Get top channels data for treemap
+    getTopChannels(limit = 50) {
+        const allChannels = this.getAllChannels();
+        return allChannels.slice(0, limit);
+    }
+
+    // Get channels filtered by country
+    getChannelsByCountry(country, limit = 50) {
+        const allChannels = this.getAllChannels();
+        return allChannels
+            .filter(channel => channel.countries.includes(country))
             .slice(0, limit);
     }
 
+    // Get heatmap data for category distribution by country
+    getHeatmapData() {
+        try {
+            // Get all unique categories from all videos
+            const allCategories = new Set();
+            Object.values(this.videoData).flat().forEach(video => {
+                if (video && video.category_name) {
+                    allCategories.add(video.category_name);
+                }
+            });
+            
+            const categories = Array.from(allCategories).sort();
+            const countries = Object.keys(this.videoData);
+            
+            // Create simple heatmap data structure
+            const heatmapData = [];
+            
+            countries.forEach(country => {
+                const countryVideos = this.videoData[country] || [];
+                const categoryCounts = {};
+                
+                // Count videos per category
+                countryVideos.forEach(video => {
+                    if (video && video.category_name) {
+                        categoryCounts[video.category_name] = (categoryCounts[video.category_name] || 0) + 1;
+                    }
+                });
+                
+                // Create data points for each category
+                categories.forEach(category => {
+                    const count = categoryCounts[category] || 0;
+                    const totalVideos = countryVideos.length;
+                    const percentage = totalVideos > 0 ? (count / totalVideos) * 100 : 0;
+                    
+                    heatmapData.push({
+                        country: country,
+                        category: category,
+                        value: percentage,
+                        count: count,
+                        totalVideos: totalVideos
+                    });
+                });
+            });
+            
+            return {
+                data: heatmapData,
+                categories: categories,
+                countries: countries
+            };
+            
+        } catch (error) {
+            console.error('Error in getHeatmapData:', error);
+            return {
+                data: [],
+                categories: [],
+                countries: []
+            };
+        }
+    }
+
     // Initialize all data loading
-    async init(countriesToLoad = ['US', 'CA', 'GB', 'DE', 'FR']) {
+    async init(countriesToLoad = ['US', 'CA', 'GB', 'DE', 'FR', 'IN', 'JP', 'KR', 'MX', 'RU']) {
         try {
             console.log('Loading categories...');
             await this.loadCategories();

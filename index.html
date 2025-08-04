@@ -23,6 +23,7 @@
             <button class="nav-btn" data-viz="heatmap">Country Heatmap</button>
             <button class="nav-btn" data-viz="treemap">Channel Treemap</button>
             <button class="nav-btn" data-viz="engagement">Engagement Breakdown</button>
+
         </nav>
 
         <main class="visualization-container">
@@ -51,16 +52,34 @@
 
             <div id="pie-chart" class="visualization">
                 <h2>Video Category Distribution</h2>
+                <div class="filter-controls">
+                    <label for="country-filter">Filter by Country:</label>
+                    <select id="country-filter">
+                        <option value="all">All Countries</option>
+                    </select>
+                </div>
                 <div class="chart-container"></div>
             </div>
 
             <div id="timeline" class="visualization">
                 <h2>Trending Videos Timeline</h2>
+                <div class="filter-controls">
+                    <label for="timeline-country-filter">Filter by Country:</label>
+                    <select id="timeline-country-filter">
+                        <option value="all">All Countries</option>
+                    </select>
+                </div>
                 <div class="chart-container"></div>
             </div>
 
             <div id="scatter" class="visualization">
                 <h2>Views vs Likes Correlation</h2>
+                <div class="filter-controls">
+                    <label for="scatter-country-filter">Filter by Country:</label>
+                    <select id="scatter-country-filter">
+                        <option value="all">All Countries</option>
+                    </select>
+                </div>
                 <div class="chart-container"></div>
             </div>
 
@@ -71,12 +90,50 @@
 
             <div id="treemap" class="visualization">
                 <h2>Top Channels Treemap</h2>
+                <div class="filter-controls">
+                    <div class="control-group">
+                        <label for="channel-count-display">Total Unique Channels:</label>
+                        <span id="channel-count-display">Loading...</span>
+                    </div>
+                    <div class="control-group">
+                        <label for="treemap-channel-limit">Number of Channels to Display:</label>
+                        <select id="treemap-channel-limit">
+                            <option value="10">Top 10</option>
+                            <option value="25" selected>Top 25</option>
+                            <option value="50">Top 50</option>
+                            <option value="100">Top 100</option>
+                            <option value="200">Top 200</option>
+                            <option value="500">Top 500</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="treemap-country-filter">Filter by Country:</label>
+                        <select id="treemap-country-filter">
+                            <option value="all" selected>All Countries</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="chart-container"></div>
             </div>
             <div id="engagement" class="visualization">
                 <h2>Engagement Breakdown</h2>
+                <div class="filter-controls">
+                    <div class="control-group">
+                        <label for="engagement-country-filter">Filter by Country:</label>
+                        <select id="engagement-country-filter">
+                            <option value="all" selected>All Countries</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="engagement-category-filter">Filter by Category:</label>
+                        <select id="engagement-category-filter">
+                            <option value="all" selected>All Categories</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="chart-container"></div>
             </div>
+
         </main>
 
         <footer>
