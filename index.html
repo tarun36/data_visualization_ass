@@ -1,1 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Trending Videos - Data Visualization Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>YouTube Trending Videos Analytics</h1>
+        <p>Interactive Data Visualization Dashboard</p>
+    </header>
 
+    <nav class="chart-nav">
+        <button class="nav-btn active" data-chart="views-category">Views by Category</button>
+        <button class="nav-btn" data-chart="views-likes-scatter">Views vs Likes</button>
+        <button class="nav-btn" data-chart="category-donut">Category Distribution</button>
+        <button class="nav-btn" data-chart="trending-line">Trending Over Time</button>
+        <button class="nav-btn" data-chart="engagement-heatmap">Engagement Heatmap</button>
+        <button class="nav-btn" data-chart="channel-bubble">Channel Performance</button>
+        <button class="nav-btn" data-chart="video-sankey">Video Journey</button>
+        <button class="nav-btn" data-chart="category-treemap">Category Treemap</button>
+    </nav>
+
+    <main>
+        <div id="chart-container">
+            <div id="loading">Loading data...</div>
+        </div>
+        
+        <div id="info-panel">
+            <h3>Chart Information</h3>
+            <div id="chart-info">
+                <p>Select a chart from the navigation above to view detailed analytics.</p>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>YouTube Trending Videos Data Visualization Project</p>
+    </footer>
+
+    <script src="js/data-loader.js"></script>
+    <script src="js/charts/views-category.js"></script>
+    <script src="js/charts/views-likes-scatter.js"></script>
+    <script src="js/charts/category-donut.js"></script>
+    <script src="js/charts/trending-line.js"></script>
+    <script src="js/charts/engagement-heatmap.js"></script>
+    <script src="js/charts/channel-bubble.js"></script>
+    <script src="js/charts/video-sankey.js"></script>
+    <script src="js/charts/category-treemap.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
