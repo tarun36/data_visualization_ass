@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Optimal YouTube Upload Strategy Analyzer</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://d3js.org/d3-geo.v3.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Optimal YouTube Upload Strategy Analyzer</h1>
+    <p>Find the perfect upload time and category for maximum views across all countries</p>
+  </header>
+
+  <main>
+    <!-- Controls Section -->
+    <section class="controls">
+      <div class="control-group">
+        <label for="view-mode">View Mode:</label>
+        <select id="view-mode">
+          <option value="heatmap">Country Heatmap</option>
+          <option value="global">Global World Map</option>
+          <option value="category">Category Analysis</option>
+        </select>
+      </div>
+      
+      <div class="control-group">
+        <label for="category-select">Filter by Category:</label>
+        <select id="category-select">
+          <option value="all">All Categories</option>
+          <option value="10">Music</option>
+          <option value="24">Entertainment</option>
+          <option value="20">Gaming</option>
+          <option value="27">Education</option>
+          <option value="23">Comedy</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="time-range">Time Range:</label>
+        <select id="time-range">
+          <option value="all">All Hours</option>
+          <option value="morning">Morning (6-12)</option>
+          <option value="afternoon">Afternoon (12-18)</option>
+          <option value="evening">Evening (18-24)</option>
+          <option value="night">Night (0-6)</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- Main Chart Section -->
+    <section id="chart-section">
+      <div id="chart-container">
+        <div id="main-chart"></div>
+        <div id="global-map" style="display: none;"></div>
+        <div id="category-chart" style="display: none;"></div>
+      </div>
+    </section>
+
+    <!-- Strategy Table -->
+    <section id="strategy-section">
+      <h2>Upload Strategy Recommendations</h2>
+      <div class="strategy-grid">
+        <div class="strategy-card">
+          <h3>Best Global Time</h3>
+          <div id="global-best" class="strategy-value">Loading...</div>
+        </div>
+        <div class="strategy-card">
+          <h3>Best Category</h3>
+          <div id="best-category" class="strategy-value">Loading...</div>
+        </div>
+        <div class="strategy-card">
+          <h3>Peak Hour</h3>
+          <div id="peak-hour" class="strategy-value">Loading...</div>
+        </div>
+        <div class="strategy-card">
+          <h3>Expected Views</h3>
+          <div id="expected-views" class="strategy-value">Loading...</div>
+        </div>
+      </div>
+      
+      <table id="strategy-table">
+        <thead>
+          <tr>
+            <th>Country</th>
+            <th>Best Hour</th>
+            <th>Best Category</th>
+            <th>Avg Views</th>
+            <th>Strategy</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Insights Section -->
+    <section id="insights-section">
+      <h2>Key Insights</h2>
+      <div class="insights-grid">
+        <div class="insight-card">
+          <h3>🌍 Global Patterns</h3>
+          <div id="global-insights">Loading insights...</div>
+        </div>
+        <div class="insight-card">
+          <h3>📊 Category Trends</h3>
+          <div id="category-insights">Loading insights...</div>
+        </div>
+        <div class="insight-card">
+          <h3>⏰ Time Analysis</h3>
+          <div id="time-insights">Loading insights...</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Created with D3.js | YouTube Trending Data Analysis</p>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>
