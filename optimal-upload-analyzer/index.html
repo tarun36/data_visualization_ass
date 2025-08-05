@@ -35,6 +35,13 @@
                     <option value="CA">🇨🇦 Canada</option>
                 </select>
             </div>
+            
+            <div class="control-group">
+                <label for="csv-upload">Upload CSV Files:</label>
+                <input type="file" id="csv-upload" multiple accept=".csv" style="display: none;">
+                <button id="upload-btn" class="upload-button">📁 Choose CSV Files</button>
+                <span id="upload-status">No files selected</span>
+            </div>
         </section>
 
         <section id="chart-section">

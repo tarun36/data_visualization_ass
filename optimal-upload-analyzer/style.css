@@ -93,6 +93,29 @@ select:focus {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
+.upload-button {
+    padding: 0.75rem 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-right: 1rem;
+}
+
+.upload-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+#upload-status {
+    font-size: 0.9rem;
+    color: #7f8c8d;
+    font-style: italic;
+}
+
 #chart-section {
     background: rgba(255, 255, 255, 0.95);
     padding: 2rem;

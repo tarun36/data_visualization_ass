@@ -512,11 +512,98 @@ function formatNumber(num) {
 // Setup event listeners
 function setupEventListeners() {
     const countrySelect = document.getElementById('country-select');
+    const uploadBtn = document.getElementById('upload-btn');
+    const csvUpload = document.getElementById('csv-upload');
+    const uploadStatus = document.getElementById('upload-status');
     
     countrySelect.addEventListener('change', function() {
         currentCountry = this.value;
         updateVisualization();
     });
+    
+    // File upload functionality
+    uploadBtn.addEventListener('click', function() {
+        csvUpload.click();
+    });
+    
+    csvUpload.addEventListener('change', function(event) {
+        const files = event.target.files;
+        if (files.length > 0) {
+            uploadStatus.textContent = `Processing ${files.length} file(s)...`;
+            processUploadedFiles(files);
+        }
+    });
+}
+
+// Process uploaded CSV files
+async function processUploadedFiles(files) {
+    const uploadStatus = document.getElementById('upload-status');
+    const uploadedData = {};
+    
+    try {
+        for (let file of files) {
+            const country = getCountryFromFilename(file.name);
+            if (country) {
+                const text = await file.text();
+                const data = d3.csvParse(text, d => ({
+                    video_id: d.video_id,
+                    trending_date: d.trending_date,
+                    title: d.title,
+                    channel_title: d.channel_title,
+                    category_id: +d.category_id,
+                    publish_time: d.publish_time,
+                    tags: d.tags,
+                    views: +d.views,
+                    likes: +d.likes,
+                    dislikes: +d.dislikes,
+                    comment_count: +d.comment_count,
+                    comments_disabled: d.comments_disabled,
+                    ratings_disabled: d.ratings_disabled,
+                    video_error_or_removed: d.video_error_or_removed,
+                    description: d.description
+                }));
+                
+                uploadedData[country] = data;
+                console.log(`✅ Processed ${data.length} records from ${file.name}`);
+            }
+        }
+        
+        // Update global data with uploaded files
+        Object.assign(allData, uploadedData);
+        
+        // Update data status
+        dataStatus.loadedCountries = Object.keys(uploadedData);
+        dataStatus.totalRecords = Object.values(allData).reduce((sum, data) => sum + data.length, 0);
+        dataStatus.dataQuality = dataStatus.loadedCountries.length > 0 ? 'real' : 'sample';
+        
+        uploadStatus.textContent = `✅ Loaded ${Object.keys(uploadedData).length} file(s) successfully!`;
+        
+        // Reprocess and update visualization
+        processData();
+        updateVisualization();
+        
+    } catch (error) {
+        console.error('Error processing uploaded files:', error);
+        uploadStatus.textContent = '❌ Error processing files. Please check file format.';
+    }
+}
+
+// Extract country code from filename
+function getCountryFromFilename(filename) {
+    const countryMap = {
+        'USvideos.csv': 'US',
+        'RUvideos.csv': 'RU',
+        'MXvideos.csv': 'MX',
+        'KRvideos.csv': 'KR',
+        'JPvideos.csv': 'JP',
+        'INvideos.csv': 'IN',
+        'FRvideos.csv': 'FR',
+        'GBvideos.csv': 'GB',
+        'DEvideos.csv': 'DE',
+        'CAvideos.csv': 'CA'
+    };
+    
+    return countryMap[filename] || null;
 }
 
 // Show loading state
