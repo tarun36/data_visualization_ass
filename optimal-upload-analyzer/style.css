@@ -30,6 +30,21 @@ header p {
     font-size: 1.1rem;
 }
 
+.header-info {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    border-left: 4px solid rgba(255, 255, 255, 0.3);
+}
+
+.header-info p {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.95rem;
+    margin: 0.25rem 0;
+    line-height: 1.4;
+}
+
 main {
     max-width: 1200px;
     margin: 2rem auto;
@@ -235,6 +250,79 @@ footer {
     border-width: 5px;
     border-style: solid;
     border-color: rgba(0, 0, 0, 0.9) transparent transparent transparent;
+}
+
+/* Data Information Styles */
+.data-info {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+    border-left: 4px solid #667eea;
+}
+
+.data-info h3 {
+    color: #2c3e50;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.data-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.data-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+}
+
+.data-stat .label {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.data-stat .value {
+    font-weight: 500;
+    color: #667eea;
+}
+
+.data-stat .value.real {
+    color: #27ae60;
+}
+
+.data-stat .value.sample {
+    color: #e74c3c;
+}
+
+.data-stat .value.mixed {
+    color: #f39c12;
+}
+
+.data-note {
+    padding: 1rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.data-note.warning {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+}
+
+.data-note.mixed {
+    background: #fff8e1;
+    border: 1px solid #ffecb3;
+    color: #f57c00;
 }
 
 /* Responsive Design */

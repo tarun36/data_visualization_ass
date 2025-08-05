@@ -49,10 +49,27 @@ let allData = {};
 let processedData = {};
 let currentCountry = 'global';
 let tooltip = null;
+let dataStatus = {
+    loadedCountries: [],
+    sampleDataCountries: [],
+    totalRecords: 0,
+    dataQuality: 'unknown'
+};
 
 // Load all CSV files
 async function loadAllData() {
     console.log('Loading data from all countries...');
+    
+    // Show loading state
+    showLoadingState();
+    
+    // Reset data status
+    dataStatus = {
+        loadedCountries: [],
+        sampleDataCountries: [],
+        totalRecords: 0,
+        dataQuality: 'unknown'
+    };
     
     try {
         // Load data for each country
@@ -77,22 +94,40 @@ async function loadAllData() {
                 }));
                 
                 allData[country] = data;
-                console.log(`Loaded ${data.length} records for ${country}`);
+                dataStatus.loadedCountries.push(country);
+                dataStatus.totalRecords += data.length;
+                console.log(`✅ Loaded ${data.length} records for ${country}`);
             } catch (error) {
-                console.warn(`Could not load ${filename}, using sample data for ${country}`);
+                console.warn(`⚠️ Could not load ${filename}, using sample data for ${country}`);
                 allData[country] = generateSampleData(country);
+                dataStatus.sampleDataCountries.push(country);
+                dataStatus.totalRecords += allData[country].length;
             }
+        }
+        
+        // Determine data quality
+        if (dataStatus.loadedCountries.length === 0) {
+            dataStatus.dataQuality = 'sample';
+        } else if (dataStatus.sampleDataCountries.length === 0) {
+            dataStatus.dataQuality = 'real';
+        } else {
+            dataStatus.dataQuality = 'mixed';
         }
         
         processData();
         updateVisualization();
+        updateDataInfo();
         
     } catch (error) {
         console.error('Error loading data:', error);
         // Generate sample data if files are not available
         generateAllSampleData();
+        dataStatus.sampleDataCountries = Object.keys(countryFiles);
+        dataStatus.dataQuality = 'sample';
+        dataStatus.totalRecords = Object.values(allData).reduce((sum, data) => sum + data.length, 0);
         processData();
         updateVisualization();
+        updateDataInfo();
     }
 }
 
@@ -266,6 +301,7 @@ function updateVisualization() {
     drawChart(chartData);
     updateTable(topTimes);
     updateStats(chartData);
+    updateDataInfo();
 }
 
 // Draw the bar chart
@@ -442,6 +478,99 @@ function setupEventListeners() {
         currentCountry = this.value;
         updateVisualization();
     });
+}
+
+// Show loading state
+function showLoadingState() {
+    const chartSection = document.getElementById('chart-section');
+    chartSection.innerHTML = `
+        <div style="text-align: center; padding: 2rem;">
+            <div style="font-size: 1.2rem; margin-bottom: 1rem;">🔄 Loading data...</div>
+            <div style="color: #666;">Analyzing YouTube trending videos from 10 countries</div>
+        </div>
+    `;
+}
+
+// Update data information panel
+function updateDataInfo() {
+    const countryName = currentCountry === 'global' ? 'Global' : countryNames[currentCountry];
+    const data = processedData[currentCountry];
+    
+    if (!data) return;
+    
+    // Calculate data completeness
+    const totalHours = 24;
+    const availableHours = Object.values(data).filter(hour => hour.videoCount > 0).length;
+    const completeness = Math.round((availableHours / totalHours) * 100);
+    
+    // Create data info HTML
+    let dataInfoHTML = `
+        <div class="data-info">
+            <h3>📊 Data Information</h3>
+            <div class="data-stats">
+                <div class="data-stat">
+                    <span class="label">Region:</span>
+                    <span class="value">${countryName}</span>
+                </div>
+                <div class="data-stat">
+                    <span class="label">Data Quality:</span>
+                    <span class="value ${dataStatus.dataQuality}">${getDataQualityLabel()}</span>
+                </div>
+                <div class="data-stat">
+                    <span class="label">Total Records:</span>
+                    <span class="value">${formatNumber(dataStatus.totalRecords)}</span>
+                </div>
+                <div class="data-stat">
+                    <span class="label">Data Completeness:</span>
+                    <span class="value">${completeness}% (${availableHours}/24 hours)</span>
+                </div>
+            </div>
+            ${getDataQualityDetails()}
+        </div>
+    `;
+    
+    // Insert data info after chart section
+    const chartSection = document.getElementById('chart-section');
+    const existingInfo = chartSection.querySelector('.data-info');
+    if (existingInfo) {
+        existingInfo.remove();
+    }
+    
+    const dataInfoDiv = document.createElement('div');
+    dataInfoDiv.innerHTML = dataInfoHTML;
+    chartSection.appendChild(dataInfoDiv);
+}
+
+// Get data quality label
+function getDataQualityLabel() {
+    switch (dataStatus.dataQuality) {
+        case 'real': return '✅ Real Data';
+        case 'sample': return '⚠️ Sample Data';
+        case 'mixed': return '🔄 Mixed Data';
+        default: return '❓ Unknown';
+    }
+}
+
+// Get detailed data quality information
+function getDataQualityDetails() {
+    if (dataStatus.dataQuality === 'real') {
+        return '<div class="data-note">✅ All data loaded from CSV files</div>';
+    } else if (dataStatus.dataQuality === 'sample') {
+        return `
+            <div class="data-note warning">
+                ⚠️ Using sample data - Place your CSV files in this directory for real analysis
+                <br>Required files: ${Object.values(countryFiles).join(', ')}
+            </div>
+        `;
+    } else {
+        return `
+            <div class="data-note mixed">
+                🔄 Mixed data - Some countries use real data, others use sample data
+                <br>Real data: ${dataStatus.loadedCountries.map(c => countryNames[c]).join(', ')}
+                <br>Sample data: ${dataStatus.sampleDataCountries.map(c => countryNames[c]).join(', ')}
+            </div>
+        `;
+    }
 }
 
 // Initialize the application
