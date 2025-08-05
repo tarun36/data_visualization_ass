@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Optimal YouTube Upload Time Analyzer</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Optimal YouTube Upload Time Analyzer</h1>
+    <p>Find the best time and category to upload for each country</p>
+  </header>
+  <main>
+    <section class="controls">
+      <label for="country-select">Select Country:</label>
+      <select id="country-select">
+        <option value="US">USA</option>
+        <option value="RU">Russia</option>
+        <option value="MX">Mexico</option>
+        <option value="KR">South Korea</option>
+        <option value="JP">Japan</option>
+        <option value="IN">India</option>
+        <option value="FR">France</option>
+        <option value="GB">Great Britain</option>
+        <option value="DE">Germany</option>
+        <option value="CA">Canada</option>
+      </select>
+    </section>
+    <section id="chart-section">
+      <h2>Top 10 Optimal Upload Times</h2>
+      <div id="chart"></div>
+      <table id="top-times-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Hour (Local)</th>
+            <th>Avg Views</th>
+            <th>Best Category</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+    </section>
+  </main>
+  <footer>
+    <p>Created with D3.js | Data: YouTube Trending by Country</p>
+  </footer>
+  <script src="main.js"></script>
+</body>
+</html>
