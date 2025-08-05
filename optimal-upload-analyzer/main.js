@@ -330,10 +330,14 @@ function drawChart(data) {
         .domain([0, d3.max(data, d => d.avgViews)])
         .range([height, 0]);
     
-    // Color scale for categories
+    // Enhanced color scale for better differentiation
     const colorScale = d3.scaleOrdinal()
         .domain(Object.values(categoryMap))
-        .range(d3.schemeCategory10);
+        .range([
+            '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+            '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
+            '#a6cee3', '#fb9a99', '#fdbf6f', '#cab2d6', '#ff9896'
+        ]);
     
     // Create axes
     const xAxis = d3.axisBottom(xScale)
@@ -352,12 +356,14 @@ function drawChart(data) {
         .attr('class', 'axis')
         .call(yAxis);
     
-    // Add axis labels
+    // Add axis labels with better styling
     svg.append('text')
         .attr('class', 'axis-label')
         .attr('x', width / 2)
         .attr('y', height + margin.bottom - 10)
         .style('text-anchor', 'middle')
+        .style('font-weight', 'bold')
+        .style('font-size', '14px')
         .text('Hour of Day');
     
     svg.append('text')
@@ -366,7 +372,21 @@ function drawChart(data) {
         .attr('x', -height / 2)
         .attr('y', -margin.left + 20)
         .style('text-anchor', 'middle')
+        .style('font-weight', 'bold')
+        .style('font-size', '14px')
         .text('Average Views');
+    
+    // Add chart title
+    const countryName = currentCountry === 'global' ? 'Global' : countryNames[currentCountry];
+    svg.append('text')
+        .attr('class', 'chart-title')
+        .attr('x', width / 2)
+        .attr('y', -10)
+        .style('text-anchor', 'middle')
+        .style('font-size', '16px')
+        .style('font-weight', 'bold')
+        .style('fill', '#2c3e50')
+        .text(`Optimal Upload Times - ${countryName}`);
     
     // Create tooltip
     tooltip = d3.select('body')
@@ -374,7 +394,7 @@ function drawChart(data) {
         .attr('class', 'tooltip')
         .style('opacity', 0);
     
-    // Add bars
+    // Add bars with enhanced styling
     svg.selectAll('.bar')
         .data(data)
         .enter()
@@ -382,20 +402,26 @@ function drawChart(data) {
         .attr('class', 'bar')
         .attr('x', d => xScale(d.hour))
         .attr('y', d => yScale(d.avgViews))
-        .attr('width', xScale.bandwidth())
+        .attr('width', xScale.bandwidth() * 0.8) // Make bars slightly narrower for better separation
         .attr('height', d => height - yScale(d.avgViews))
         .attr('fill', d => colorScale(d.bestCategoryName))
+        .attr('stroke', '#ffffff')
+        .attr('stroke-width', 1)
+        .attr('rx', 3) // Rounded corners
         .on('mouseover', function(event, d) {
             const countryName = currentCountry === 'global' ? 'Global' : countryNames[currentCountry];
             tooltip.transition()
                 .duration(200)
                 .style('opacity', 0.9);
             tooltip.html(`
-                <strong>${countryName}</strong><br/>
-                Hour: ${d.hour}:00<br/>
-                Avg Views: ${formatNumber(d.avgViews)}<br/>
-                Best Category: ${d.bestCategoryName}<br/>
-                Videos: ${d.videoCount}
+                <div style="font-weight: bold; margin-bottom: 5px;">${countryName}</div>
+                <div style="margin-bottom: 3px;">🕐 <strong>Hour:</strong> ${d.hour}:00</div>
+                <div style="margin-bottom: 3px;">📊 <strong>Avg Views:</strong> ${formatNumber(d.avgViews)}</div>
+                <div style="margin-bottom: 3px;">📂 <strong>Best Category:</strong> ${d.bestCategoryName}</div>
+                <div style="margin-bottom: 3px;">🎬 <strong>Videos:</strong> ${d.videoCount}</div>
+                <div style="margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 11px; opacity: 0.8;">
+                    💡 Bar color represents the best performing category for this hour
+                </div>
             `)
                 .style('left', (event.pageX + 10) + 'px')
                 .style('top', (event.pageY - 28) + 'px');
@@ -406,10 +432,19 @@ function drawChart(data) {
                 .style('opacity', 0);
         });
     
-    // Add legend
+    // Add enhanced legend
     const legend = svg.append('g')
         .attr('class', 'legend')
         .attr('transform', `translate(${width + 10}, 0)`);
+    
+    // Add legend title
+    legend.append('text')
+        .attr('x', 0)
+        .attr('y', -10)
+        .style('font-size', '14px')
+        .style('font-weight', 'bold')
+        .style('fill', '#2c3e50')
+        .text('Categories');
     
     const uniqueCategories = [...new Set(data.map(d => d.bestCategoryName))];
     const legendItems = legend.selectAll('.legend-item')
@@ -417,18 +452,22 @@ function drawChart(data) {
         .enter()
         .append('g')
         .attr('class', 'legend-item')
-        .attr('transform', (d, i) => `translate(0, ${i * 20})`);
+        .attr('transform', (d, i) => `translate(0, ${i * 25})`);
     
     legendItems.append('rect')
-        .attr('width', 15)
-        .attr('height', 15)
-        .attr('fill', d => colorScale(d));
+        .attr('width', 18)
+        .attr('height', 18)
+        .attr('fill', d => colorScale(d))
+        .attr('stroke', '#ffffff')
+        .attr('stroke-width', 1)
+        .attr('rx', 2);
     
     legendItems.append('text')
-        .attr('x', 20)
+        .attr('x', 25)
         .attr('y', 12)
-        .style('font-size', '12px')
-        .text(d => d.length > 15 ? d.substring(0, 15) + '...' : d);
+        .style('font-size', '11px')
+        .style('fill', '#2c3e50')
+        .text(d => d.length > 20 ? d.substring(0, 20) + '...' : d);
 }
 
 // Update the table with top times

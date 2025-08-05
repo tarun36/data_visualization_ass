@@ -218,15 +218,22 @@ footer {
     font-size: 12px;
 }
 
+.chart-title {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
 .bar {
     transition: all 0.3s ease;
     cursor: pointer;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
 .bar:hover {
-    opacity: 0.8;
+    opacity: 0.9;
     stroke: #2c3e50;
     stroke-width: 2px;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+    transform: translateY(-2px);
 }
 
 .tooltip {
