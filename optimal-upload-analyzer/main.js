@@ -276,7 +276,17 @@ function processData() {
 // Update visualization based on selected country
 function updateVisualization() {
     const data = processedData[currentCountry];
-    if (!data) return;
+    if (!data) {
+        console.warn('No data available for visualization');
+        return;
+    }
+    
+    // Check if chart container exists
+    const chartContainer = document.getElementById('chart');
+    if (!chartContainer) {
+        console.error('Chart container not found');
+        return;
+    }
     
     // Convert to array format for D3
     const chartData = [];
@@ -306,8 +316,14 @@ function updateVisualization() {
 
 // Draw the bar chart
 function drawChart(data) {
+    const chartContainer = document.getElementById('chart');
+    if (!chartContainer) {
+        console.error('Chart container not found');
+        return;
+    }
+    
     const margin = {top: 40, right: 30, bottom: 60, left: 80};
-    const width = document.getElementById('chart').clientWidth - margin.left - margin.right;
+    const width = chartContainer.clientWidth - margin.left - margin.right;
     const height = 400 - margin.top - margin.bottom;
     
     // Clear previous chart
@@ -703,10 +719,53 @@ function getDataQualityDetails() {
 async function init() {
     console.log('Initializing Optimal Upload Time Analyzer...');
     
-    setupEventListeners();
-    await loadAllData();
-    
-    console.log('Application initialized successfully!');
+    // Ensure DOM is fully loaded
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initializeApp();
+        });
+    } else {
+        // DOM is already loaded, but wait a bit more to be safe
+        setTimeout(async () => {
+            await initializeApp();
+        }, 50);
+    }
+}
+
+async function initializeApp() {
+    try {
+        // Small delay to ensure DOM is fully ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Verify essential elements exist
+        const chartContainer = document.getElementById('chart');
+        if (!chartContainer) {
+            throw new Error('Chart container not found. Please check if the page loaded correctly.');
+        }
+        
+        setupEventListeners();
+        await loadAllData();
+        console.log('Application initialized successfully!');
+        console.log('✅ All elements found and ready');
+        console.log('📊 Chart container:', document.getElementById('chart') ? 'Found' : 'Missing');
+        console.log('🎛️ Controls:', document.getElementById('country-select') ? 'Found' : 'Missing');
+    } catch (error) {
+        console.error('Error initializing application:', error);
+        showError('Failed to initialize application. Please refresh the page.');
+    }
+}
+
+// Show error message to user
+function showError(message) {
+    const chartSection = document.getElementById('chart-section');
+    if (chartSection) {
+        chartSection.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: #e74c3c;">
+                <div style="font-size: 1.2rem; margin-bottom: 1rem;">❌ Error</div>
+                <div style="color: #666;">${message}</div>
+            </div>
+        `;
+    }
 }
 
 // Start the application
