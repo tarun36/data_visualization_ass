@@ -281,10 +281,20 @@ function updateVisualization() {
         return;
     }
     
-    // Check if chart container exists
-    const chartContainer = document.getElementById('chart');
+    // Check if chart container exists with retry logic
+    let chartContainer = document.getElementById('chart');
     if (!chartContainer) {
-        console.error('Chart container not found');
+        console.warn('Chart container not found, retrying...');
+        // Wait a bit and try again
+        setTimeout(() => {
+            chartContainer = document.getElementById('chart');
+            if (chartContainer) {
+                console.log('✅ Chart container found on retry');
+                updateVisualization(); // Retry the function
+            } else {
+                console.error('Chart container still not found after retry');
+            }
+        }, 100);
         return;
     }
     
@@ -719,7 +729,7 @@ function getDataQualityDetails() {
 async function init() {
     console.log('Initializing Optimal Upload Time Analyzer...');
     
-    // Ensure DOM is fully loaded
+    // Wait for DOM to be fully loaded
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', async () => {
             await initializeApp();
@@ -728,25 +738,41 @@ async function init() {
         // DOM is already loaded, but wait a bit more to be safe
         setTimeout(async () => {
             await initializeApp();
-        }, 50);
+        }, 100);
     }
 }
 
 async function initializeApp() {
     try {
-        // Small delay to ensure DOM is fully ready
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Wait for DOM to be fully ready with multiple checks
+        let attempts = 0;
+        const maxAttempts = 10;
         
-        // Verify essential elements exist
-        const chartContainer = document.getElementById('chart');
-        if (!chartContainer) {
-            throw new Error('Chart container not found. Please check if the page loaded correctly.');
+        while (attempts < maxAttempts) {
+            const chartContainer = document.getElementById('chart');
+            const countrySelect = document.getElementById('country-select');
+            
+            if (chartContainer && countrySelect) {
+                console.log('✅ All required elements found');
+                break;
+            }
+            
+            console.log(`⏳ Waiting for DOM elements... (attempt ${attempts + 1}/${maxAttempts})`);
+            await new Promise(resolve => setTimeout(resolve, 200));
+            attempts++;
         }
         
+        // Final check
+        const chartContainer = document.getElementById('chart');
+        if (!chartContainer) {
+            throw new Error('Chart container not found after multiple attempts. Please refresh the page.');
+        }
+        
+        console.log('🚀 Starting application initialization...');
+        debugDOMElements(); // Debug DOM elements
         setupEventListeners();
         await loadAllData();
-        console.log('Application initialized successfully!');
-        console.log('✅ All elements found and ready');
+        console.log('✅ Application initialized successfully!');
         console.log('📊 Chart container:', document.getElementById('chart') ? 'Found' : 'Missing');
         console.log('🎛️ Controls:', document.getElementById('country-select') ? 'Found' : 'Missing');
     } catch (error) {
@@ -763,10 +789,43 @@ function showError(message) {
             <div style="text-align: center; padding: 2rem; color: #e74c3c;">
                 <div style="font-size: 1.2rem; margin-bottom: 1rem;">❌ Error</div>
                 <div style="color: #666;">${message}</div>
+                <div style="margin-top: 1rem; font-size: 0.9rem; color: #999;">
+                    Debug info: Chart section found: ${chartSection ? 'Yes' : 'No'}<br>
+                    Chart container found: ${document.getElementById('chart') ? 'Yes' : 'No'}<br>
+                    Document ready state: ${document.readyState}
+                </div>
             </div>
         `;
     }
 }
 
-// Start the application
+// Debug function to check DOM elements
+function debugDOMElements() {
+    console.log('🔍 Debugging DOM elements...');
+    console.log('Document ready state:', document.readyState);
+    console.log('Chart section:', document.getElementById('chart-section') ? 'Found' : 'Missing');
+    console.log('Chart container:', document.getElementById('chart') ? 'Found' : 'Missing');
+    console.log('Country select:', document.getElementById('country-select') ? 'Found' : 'Missing');
+    console.log('All elements with ID "chart":', document.querySelectorAll('#chart').length);
+}
+
+// Alternative initialization method
+function initWithWindowLoad() {
+    console.log('🔄 Initializing with window load event...');
+    window.addEventListener('load', async () => {
+        console.log('🌐 Window loaded, starting application...');
+        await initializeApp();
+    });
+}
+
+// Start the application with multiple fallback methods
 init();
+
+// Also try window load as backup
+if (document.readyState === 'complete') {
+    console.log('📄 Document already complete, initializing...');
+    setTimeout(initializeApp, 50);
+} else {
+    console.log('⏳ Document not complete, waiting for window load...');
+    initWithWindowLoad();
+}
