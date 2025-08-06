@@ -833,6 +833,60 @@ class DataLoader {
         }
     }
 
+    // Get viral journey data for the explorer
+    getViralJourneyData(countriesFilter = 'all', minViews = 50000) {
+        try {
+            const countries = Object.keys(this.videoData);
+            let countriesToShow = countries;
+            
+            if (countriesFilter === 'top5') {
+                const countryStats = countries.map(country => {
+                    const videos = this.videoData[country] || [];
+                    const totalViews = videos.reduce((sum, video) => sum + (video.views || 0), 0);
+                    return { country, totalViews };
+                }).sort((a, b) => b.totalViews - a.totalViews).slice(0, 5);
+                
+                countriesToShow = countryStats.map(stat => stat.country);
+            } else if (countriesFilter === 'top3') {
+                const countryStats = countries.map(country => {
+                    const videos = this.videoData[country] || [];
+                    const totalViews = videos.reduce((sum, video) => sum + (video.views || 0), 0);
+                    return { country, totalViews };
+                }).sort((a, b) => b.totalViews - a.totalViews).slice(0, 3);
+                
+                countriesToShow = countryStats.map(stat => stat.country);
+            }
+
+            // Collect all qualifying videos from selected countries
+            const viralJourneyData = [];
+            
+            countriesToShow.forEach(country => {
+                const videos = this.videoData[country] || [];
+                
+                videos.forEach(video => {
+                    // Only include videos with sufficient engagement
+                    if (video.views >= minViews && video.publish_time && video.trending_date_parsed) {
+                        viralJourneyData.push({
+                            ...video,
+                            country: country,
+                            countryDisplay: this.getCountryDisplayName(country)
+                        });
+                    }
+                });
+            });
+
+            // Sort by views descending and limit to top 100 for performance
+            viralJourneyData.sort((a, b) => b.views - a.views);
+            const limitedData = viralJourneyData.slice(0, 100);
+
+            console.log(`Generated viral journey data for ${limitedData.length} videos across ${countriesToShow.length} countries`);
+            return limitedData;
+        } catch (error) {
+            console.error('Error in getViralJourneyData:', error);
+            return [];
+        }
+    }
+
     // Initialize all data loading
     async init(countriesToLoad = ['US', 'CA', 'GB', 'DE', 'FR', 'IN', 'JP', 'KR', 'MX', 'RU']) {
         try {

@@ -1190,8 +1190,8 @@ class Visualizations {
         }
     }
 
-    // 8. Country Performance Heatmap - Better than Radar for Multi-Metric Comparison
-    createCountryPerformanceHeatmap(data, container) {
+    // 8. Viral Journey Explorer - Creative Timeline of Video Success Stories
+    createViralJourneyExplorer(data, container) {
         this.clearVisualization(container);
         
         if (!data || data.length === 0) {
@@ -1205,14 +1205,14 @@ class Visualizations {
                 .attr('y', 150)
                 .attr('text-anchor', 'middle')
                 .style('font-size', '16px')
-                .text('No data available for country performance heatmap');
+                .text('No viral journey data available');
             return;
         }
         
         const containerRect = container.getBoundingClientRect();
         const width = containerRect.width;
         const height = containerRect.height;
-        const margin = { top: 80, right: 60, bottom: 100, left: 120 };
+        const margin = { top: 80, right: 60, bottom: 100, left: 80 };
         const chartWidth = width - margin.left - margin.right;
         const chartHeight = height - margin.top - margin.bottom;
 
@@ -1221,170 +1221,220 @@ class Visualizations {
             .attr('width', width)
             .attr('height', height);
 
-        // Add title
-        svg.append('text')
+        // Add title with creative styling
+        const titleGroup = svg.append('g');
+        
+        titleGroup.append('text')
             .attr('x', width / 2)
             .attr('y', 25)
             .attr('text-anchor', 'middle')
-            .style('font-size', '18px')
+            .style('font-size', '20px')
             .style('font-weight', 'bold')
             .style('fill', '#2c3e50')
-            .text('Country Performance Matrix');
+            .text('🚀 Viral Journey Explorer');
 
-        svg.append('text')
+        titleGroup.append('text')
             .attr('x', width / 2)
             .attr('y', 45)
             .attr('text-anchor', 'middle')
             .style('font-size', '12px')
             .style('fill', '#7f8c8d')
-            .text('Darker colors indicate better performance (hover for exact values)');
+            .text('Discover how videos traveled from upload to viral success');
 
         const chartGroup = svg.append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
 
-        // Determine available metrics
-        const sampleData = data[0];
-        const possibleMetrics = {
-            'avgViews': 'Avg Views',
-            'avgLikes': 'Avg Likes',
-            'avgComments': 'Avg Comments',
-            'engagementRate': 'Engagement Rate',
-            'totalVideos': 'Total Videos',
-            'categoryDiversity': 'Category Diversity'
-        };
-        
-        const availableMetrics = Object.keys(possibleMetrics).filter(metric => 
-            sampleData && sampleData[metric] !== undefined
-        );
-        
-        if (availableMetrics.length === 0) {
+        // Calculate viral velocity (days from publish to trending)
+        const processedData = data.map(d => {
+            const publishDate = new Date(d.publish_time);
+            const trendingDate = d.trending_date_parsed || new Date();
+            const daysToViral = Math.max(0, Math.floor((trendingDate - publishDate) / (1000 * 60 * 60 * 24)));
+            
+            return {
+                ...d,
+                daysToViral,
+                publishDate,
+                trendingDate,
+                viralVelocity: daysToViral === 0 ? 'Instant' : daysToViral === 1 ? 'Lightning' : daysToViral <= 7 ? 'Fast' : 'Slow Burn',
+                engagementScore: (d.likes + d.comment_count) / Math.max(d.views, 1) * 100,
+                successLevel: d.views > 10000000 ? 'Mega Hit' : d.views > 1000000 ? 'Viral' : d.views > 100000 ? 'Popular' : 'Trending'
+            };
+        }).filter(d => d.daysToViral >= 0 && d.daysToViral <= 30); // Focus on videos that went viral within 30 days
+
+        if (processedData.length === 0) {
             chartGroup.append('text')
                 .attr('x', chartWidth / 2)
                 .attr('y', chartHeight / 2)
                 .attr('text-anchor', 'middle')
                 .style('font-size', '16px')
-                .text('No valid metrics found');
+                .text('No viral journey data found');
             return;
         }
 
-        const metrics = availableMetrics.slice(0, 6); // Limit for better visibility
-        const countries = data.map(d => d.country);
-
         // Create scales
-        const xScale = d3.scaleBand()
-            .domain(metrics)
-            .range([0, chartWidth])
-            .padding(0.1);
+        const xScale = d3.scaleLinear()
+            .domain([0, d3.max(processedData, d => d.daysToViral)])
+            .range([0, chartWidth]);
 
-        const yScale = d3.scaleBand()
-            .domain(countries)
-            .range([0, chartHeight])
-            .padding(0.1);
+        const yScale = d3.scaleLog()
+            .domain([d3.min(processedData, d => Math.max(1000, d.views)), d3.max(processedData, d => d.views)])
+            .range([chartHeight, 0]);
 
-        // Normalize data for each metric (0-1 scale for consistent coloring)
-        const normalizedData = {};
-        metrics.forEach(metric => {
-            const values = data.map(d => d[metric]).filter(v => v !== undefined && v !== null && !isNaN(v));
-            if (values.length > 0) {
-                const min = d3.min(values);
-                const max = d3.max(values);
-                const range = max - min;
-                
-                normalizedData[metric] = {};
-                data.forEach(countryData => {
-                    const value = countryData[metric];
-                    if (value !== undefined && value !== null && !isNaN(value)) {
-                        normalizedData[metric][countryData.country] = range > 0 ? (value - min) / range : 0;
-                    } else {
-                        normalizedData[metric][countryData.country] = 0;
-                    }
-                });
-            }
-        });
+        const sizeScale = d3.scaleSqrt()
+            .domain([0, d3.max(processedData, d => d.engagementScore)])
+            .range([3, 25]);
 
-        // Color scale for heatmap
-        const colorScale = d3.scaleSequential(d3.interpolateBlues)
-            .domain([0, 1]);
+        // Color scale based on success level
+        const colorScale = d3.scaleOrdinal()
+            .domain(['Trending', 'Popular', 'Viral', 'Mega Hit'])
+            .range(['#3498db', '#f39c12', '#e74c3c', '#9b59b6']);
 
-        // Create heatmap cells
-        metrics.forEach(metric => {
-            countries.forEach(country => {
-                const normalizedValue = normalizedData[metric] ? normalizedData[metric][country] : 0;
-                const actualValue = data.find(d => d.country === country)[metric];
-                
-                const cell = chartGroup.append('rect')
-                    .attr('x', xScale(metric))
-                    .attr('y', yScale(country))
-                    .attr('width', xScale.bandwidth())
-                    .attr('height', yScale.bandwidth())
-                    .attr('fill', colorScale(normalizedValue))
-                    .attr('stroke', '#fff')
-                    .attr('stroke-width', 1)
-                    .style('cursor', 'pointer')
-                    .on('mouseover', (event) => {
-                        // Highlight row and column
-                        chartGroup.selectAll('rect')
-                            .attr('opacity', 0.3);
-                        chartGroup.selectAll(`rect[data-country="${country}"]`)
-                            .attr('opacity', 1);
-                        chartGroup.selectAll(`rect[data-metric="${metric}"]`)
-                            .attr('opacity', 1);
-                        d3.select(event.currentTarget).attr('opacity', 1);
-                        
-                        // Format value based on metric type
-                        let formattedValue;
-                        if (metric.includes('Views') || metric.includes('views')) {
-                            formattedValue = d3.format('.2s')(actualValue) + ' views';
-                        } else if (metric.includes('Likes') || metric.includes('likes') || metric.includes('Comments')) {
-                            formattedValue = d3.format('.2s')(actualValue);
-                        } else if (metric.includes('Rate') || metric.includes('rate')) {
-                            formattedValue = d3.format('.2f')(actualValue) + '%';
-                        } else {
-                            formattedValue = d3.format('.2f')(actualValue);
-                        }
-                        
-                        this.tooltip.transition().duration(200).style('opacity', 0.9);
-                        this.tooltip.html(`
-                            <div style="background: rgba(0,0,0,0.9); color: white; padding: 12px; border-radius: 5px; font-size: 12px;">
-                                <strong style="color: #4CAF50;">${country}</strong><br/>
-                                <span style="color: #FFF;">${possibleMetrics[metric]}:</span><br/>
-                                <strong style="color: #FFD700; font-size: 14px;">${formattedValue}</strong><br/>
-                                <span style="color: #87CEEB;">Relative Performance: ${(normalizedValue * 100).toFixed(1)}%</span>
-                            </div>
-                        `)
-                        .style('left', (event.pageX + 10) + 'px')
-                        .style('top', (event.pageY - 28) + 'px');
-                    })
-                    .on('mouseout', () => {
-                        chartGroup.selectAll('rect').attr('opacity', 1);
-                        this.tooltip.transition().duration(500).style('opacity', 0);
-                    });
-                
-                // Add data attributes for highlighting
-                cell.attr('data-country', country)
-                    .attr('data-metric', metric);
-            });
-        });
+        // Add background grid for better readability
+        const xAxisGrid = d3.axisBottom(xScale)
+            .tickSize(-chartHeight)
+            .tickFormat('');
 
-        // Add X-axis (metrics)
-        const xAxis = d3.axisBottom(xScale);
+        const yAxisGrid = d3.axisLeft(yScale)
+            .tickSize(-chartWidth)
+            .tickFormat('');
+
         chartGroup.append('g')
-            .attr('transform', `translate(0, ${chartHeight})`)
-            .call(xAxis)
-            .selectAll('text')
-            .style('text-anchor', 'end')
-            .attr('dx', '-.8em')
-            .attr('dy', '.15em')
-            .attr('transform', 'rotate(-45)')
-            .style('font-size', '11px')
-            .style('font-weight', 'bold')
-            .text(d => possibleMetrics[d] || d);
+            .attr('class', 'grid')
+            .attr('transform', `translate(0,${chartHeight})`)
+            .call(xAxisGrid)
+            .style('stroke-dasharray', '3,3')
+            .style('opacity', 0.3);
 
-        // Add Y-axis (countries)
-        const yAxis = d3.axisLeft(yScale);
+        chartGroup.append('g')
+            .attr('class', 'grid')
+            .call(yAxisGrid)
+            .style('stroke-dasharray', '3,3')
+            .style('opacity', 0.3);
+
+        // Create journey paths (curved lines showing the viral trajectory)
+        const line = d3.line()
+            .x(d => xScale(d.x))
+            .y(d => yScale(d.y))
+            .curve(d3.curveBasis);
+
+        // Add viral success zones
+        const zones = [
+            { name: 'Instant Viral', x: 0, width: xScale(1), color: '#e74c3c', opacity: 0.1 },
+            { name: 'Fast Track', x: xScale(1), width: xScale(7) - xScale(1), color: '#f39c12', opacity: 0.1 },
+            { name: 'Slow Burn', x: xScale(7), width: chartWidth - xScale(7), color: '#3498db', opacity: 0.1 }
+        ];
+
+        zones.forEach(zone => {
+            chartGroup.append('rect')
+                .attr('x', zone.x)
+                .attr('y', 0)
+                .attr('width', zone.width)
+                .attr('height', chartHeight)
+                .attr('fill', zone.color)
+                .attr('opacity', zone.opacity);
+
+            chartGroup.append('text')
+                .attr('x', zone.x + zone.width / 2)
+                .attr('y', 20)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '10px')
+                .style('font-weight', 'bold')
+                .style('fill', zone.color)
+                .style('opacity', 0.7)
+                .text(zone.name);
+        });
+
+        // Add video bubbles with creative styling
+        const bubbles = chartGroup.selectAll('.video-bubble')
+            .data(processedData)
+            .enter().append('g')
+            .attr('class', 'video-bubble')
+            .attr('transform', d => `translate(${xScale(d.daysToViral)},${yScale(d.views)})`);
+
+        // Main bubble
+        bubbles.append('circle')
+            .attr('r', d => sizeScale(d.engagementScore))
+            .attr('fill', d => colorScale(d.successLevel))
+            .attr('stroke', '#fff')
+            .attr('stroke-width', 2)
+            .style('cursor', 'pointer')
+            .style('filter', 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))')
+            .on('mouseover', (event, d) => {
+                // Highlight the bubble
+                d3.select(event.currentTarget)
+                    .transition()
+                    .duration(200)
+                    .attr('r', sizeScale(d.engagementScore) * 1.3)
+                    .style('filter', 'drop-shadow(4px 4px 8px rgba(0,0,0,0.5))');
+
+                // Show detailed story card
+                this.tooltip.transition().duration(200).style('opacity', 0.95);
+                this.tooltip.html(`
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 10px; font-size: 12px; max-width: 300px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <span style="font-size: 24px; margin-right: 8px;">${d.successLevel === 'Mega Hit' ? '🏆' : d.successLevel === 'Viral' ? '🚀' : d.successLevel === 'Popular' ? '⭐' : '📈'}</span>
+                            <strong style="font-size: 14px; color: #FFD700;">${d.successLevel} Story</strong>
+                        </div>
+                        
+                        <div style="background: rgba(255,255,255,0.1); padding: 8px; border-radius: 5px; margin-bottom: 8px;">
+                            <strong style="color: #FFD700;">"${d.title.length > 40 ? d.title.substring(0, 40) + '...' : d.title}"</strong><br/>
+                            <span style="color: #87CEEB; font-size: 10px;">by ${d.channel_title}</span>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;">
+                            <div><strong>📊 Views:</strong> ${d3.format('.2s')(d.views)}</div>
+                            <div><strong>❤️ Likes:</strong> ${d3.format('.2s')(d.likes)}</div>
+                            <div><strong>💬 Comments:</strong> ${d3.format('.2s')(d.comment_count)}</div>
+                            <div><strong>⚡ Speed:</strong> ${d.viralVelocity}</div>
+                        </div>
+                        
+                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.3);">
+                            <strong style="color: #FFD700;">Viral Journey:</strong> ${d.daysToViral} days from upload to trending<br/>
+                            <strong style="color: #FFD700;">Engagement Score:</strong> ${d.engagementScore.toFixed(2)}%
+                        </div>
+                    </div>
+                `)
+                .style('left', (event.pageX + 10) + 'px')
+                .style('top', (event.pageY - 100) + 'px');
+            })
+            .on('mouseout', (event, d) => {
+                d3.select(event.currentTarget)
+                    .transition()
+                    .duration(200)
+                    .attr('r', sizeScale(d.engagementScore))
+                    .style('filter', 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))');
+
+                this.tooltip.transition().duration(500).style('opacity', 0);
+            });
+
+        // Add small icons/emojis on bubbles based on success level
+        bubbles.append('text')
+            .attr('text-anchor', 'middle')
+            .attr('dy', '0.35em')
+            .style('font-size', d => `${Math.min(12, sizeScale(d.engagementScore) * 0.8)}px`)
+            .style('pointer-events', 'none')
+            .text(d => {
+                if (d.successLevel === 'Mega Hit') return '🏆';
+                if (d.successLevel === 'Viral') return '🚀';
+                if (d.successLevel === 'Popular') return '⭐';
+                return '📈';
+            });
+
+        // Add axes with creative styling
+        const xAxis = d3.axisBottom(xScale)
+            .tickFormat(d => d === 0 ? 'Same Day' : `${d} days`);
+            
+        const yAxis = d3.axisLeft(yScale)
+            .tickFormat(d3.format('.2s'));
+
+        chartGroup.append('g')
+            .attr('transform', `translate(0,${chartHeight})`)
+            .call(xAxis)
+            .style('font-size', '11px')
+            .style('font-weight', 'bold');
+
         chartGroup.append('g')
             .call(yAxis)
-            .selectAll('text')
             .style('font-size', '11px')
             .style('font-weight', 'bold');
 
@@ -1397,7 +1447,7 @@ class Visualizations {
             .style('font-size', '14px')
             .style('font-weight', 'bold')
             .style('fill', '#2c3e50')
-            .text('Countries');
+            .text('📈 Total Views');
 
         svg.append('text')
             .attr('x', width / 2)
@@ -1406,59 +1456,62 @@ class Visualizations {
             .style('font-size', '14px')
             .style('font-weight', 'bold')
             .style('fill', '#2c3e50')
-            .text('Performance Metrics');
+            .text('⏱️ Days from Upload to Trending');
 
-        // Add color legend
-        const legendWidth = 200;
-        const legendHeight = 20;
+        // Add creative legend
         const legend = svg.append('g')
-            .attr('transform', `translate(${width - legendWidth - 40}, ${margin.top - 40})`);
-
-        // Create gradient for legend
-        const gradient = svg.append('defs')
-            .append('linearGradient')
-            .attr('id', 'heatmap-gradient')
-            .attr('x1', '0%')
-            .attr('x2', '100%');
-
-        gradient.append('stop')
-            .attr('offset', '0%')
-            .attr('stop-color', colorScale(0));
-
-        gradient.append('stop')
-            .attr('offset', '100%')
-            .attr('stop-color', colorScale(1));
+            .attr('transform', `translate(${width - 180}, 80)`);
 
         legend.append('rect')
-            .attr('width', legendWidth)
-            .attr('height', legendHeight)
-            .style('fill', 'url(#heatmap-gradient)')
-            .attr('stroke', '#333')
-            .attr('stroke-width', 1);
+            .attr('x', -10)
+            .attr('y', -15)
+            .attr('width', 170)
+            .attr('height', 120)
+            .attr('fill', 'rgba(255, 255, 255, 0.95)')
+            .attr('stroke', '#ddd')
+            .attr('rx', 8);
 
         legend.append('text')
             .attr('x', 0)
-            .attr('y', -5)
-            .style('font-size', '11px')
-            .style('fill', '#666')
-            .text('Low Performance');
+            .attr('y', 0)
+            .style('font-size', '12px')
+            .style('font-weight', 'bold')
+            .style('fill', '#2c3e50')
+            .text('🎯 Success Levels:');
 
-        legend.append('text')
-            .attr('x', legendWidth)
-            .attr('y', -5)
-            .attr('text-anchor', 'end')
-            .style('font-size', '11px')
-            .style('fill', '#666')
-            .text('High Performance');
+        const legendItems = [
+            { level: 'Mega Hit', color: '#9b59b6', icon: '🏆' },
+            { level: 'Viral', color: '#e74c3c', icon: '🚀' },
+            { level: 'Popular', color: '#f39c12', icon: '⭐' },
+            { level: 'Trending', color: '#3498db', icon: '📈' }
+        ];
 
-        // Add instructions
+        legendItems.forEach((item, i) => {
+            const legendItem = legend.append('g')
+                .attr('transform', `translate(0, ${(i + 1) * 20})`);
+
+            legendItem.append('circle')
+                .attr('cx', 8)
+                .attr('cy', 0)
+                .attr('r', 6)
+                .attr('fill', item.color);
+
+            legendItem.append('text')
+                .attr('x', 18)
+                .attr('y', 5)
+                .style('font-size', '10px')
+                .style('fill', '#2c3e50')
+                .text(`${item.icon} ${item.level}`);
+        });
+
+        // Add interaction instructions
         svg.append('text')
             .attr('x', width / 2)
             .attr('y', height - 5)
             .attr('text-anchor', 'middle')
             .style('font-size', '10px')
             .style('fill', '#999')
-            .text('Hover over cells to see exact values and relative performance');
+            .text('💡 Hover over bubbles to explore each video\'s viral journey story');
     }
 
 }

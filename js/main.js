@@ -204,7 +204,7 @@ class YouTubeDataVisualization {
                     break;
 
                 case 'radar':
-                    this.renderCountryPerformanceHeatmap(container);
+                    this.renderViralJourneyExplorer(container);
                     break;
 
                 default:
@@ -634,20 +634,19 @@ class YouTubeDataVisualization {
         }
     }
 
-    // Render Country Performance Heatmap
-    renderCountryPerformanceHeatmap(container) {
+    // Render Viral Journey Explorer
+    renderViralJourneyExplorer(container) {
         try {
             // Get current filter values
-            const metricsType = document.getElementById('radar-metrics')?.value || 'engagement';
             const countriesFilter = document.getElementById('radar-countries')?.value || 'all';
             
-            // Get heatmap data (reusing the same data structure)
-            const heatmapData = this.dataLoader.getRadarData(metricsType, countriesFilter);
+            // Get viral journey data
+            const viralJourneyData = this.dataLoader.getViralJourneyData(countriesFilter, 50000);
             
-            this.visualizations.createCountryPerformanceHeatmap(heatmapData, container);
+            this.visualizations.createViralJourneyExplorer(viralJourneyData, container);
         } catch (error) {
-            console.error('Error rendering Country Performance Heatmap:', error);
-            this.showVisualizationError(container, `Error rendering Country Performance Heatmap: ${error.message}`);
+            console.error('Error rendering Viral Journey Explorer:', error);
+            this.showVisualizationError(container, `Error rendering Viral Journey Explorer: ${error.message}`);
         }
     }
 
@@ -669,20 +668,11 @@ class YouTubeDataVisualization {
         const metricsFilter = document.getElementById('radar-metrics');
         const countriesFilter = document.getElementById('radar-countries');
 
-        if (metricsFilter) {
-            metricsFilter.addEventListener('change', () => {
-                const container = document.querySelector('#radar .chart-container');
-                if (container) {
-                    this.renderCountryPerformanceHeatmap(container);
-                }
-            });
-        }
-
         if (countriesFilter) {
             countriesFilter.addEventListener('change', () => {
                 const container = document.querySelector('#radar .chart-container');
                 if (container) {
-                    this.renderCountryPerformanceHeatmap(container);
+                    this.renderViralJourneyExplorer(container);
                 }
             });
         }

@@ -36,7 +36,7 @@
             <button class="nav-btn" data-viz="treemap">Channel Treemap</button>
             <button class="nav-btn" data-viz="engagement">Engagement Breakdown</button>
             <button class="nav-btn" data-viz="sankey">Category Flow</button>
-            <button class="nav-btn" data-viz="radar">Performance Matrix</button>
+            <button class="nav-btn" data-viz="radar">Viral Journey</button>
 
         </nav>
 
@@ -164,16 +164,8 @@
             </div>
 
             <div id="radar" class="visualization">
-                <h2>Country Performance Matrix</h2>
+                <h2>🚀 Viral Journey Explorer</h2>
                 <div class="filter-controls">
-                    <div class="control-group">
-                        <label for="radar-metrics">Metrics to Compare:</label>
-                        <select id="radar-metrics">
-                            <option value="engagement" selected>Engagement Metrics</option>
-                            <option value="views">Views Metrics</option>
-                            <option value="all">All Metrics</option>
-                        </select>
-                    </div>
                     <div class="control-group">
                         <label for="radar-countries">Countries to Display:</label>
                         <select id="radar-countries">
@@ -181,6 +173,9 @@
                             <option value="top5">Top 5 Countries</option>
                             <option value="top3">Top 3 Countries</option>
                         </select>
+                    </div>
+                    <div class="control-group">
+                        <label style="color: #7f8c8d; font-size: 12px;">Explore how videos traveled from upload to viral success</label>
                     </div>
                 </div>
                 <div class="chart-container"></div>
