@@ -833,52 +833,96 @@ class DataLoader {
         }
     }
 
-    // Get channel timeline data for the success timeline
+    // Get publishing timing data for heatmap (day vs hour analysis)
+    getPublishingTimingData() {
+        try {
+            const timingData = {};
+            const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            
+            // Initialize grid: day x hour
+            for (let day = 0; day < 7; day++) {
+                timingData[day] = {};
+                for (let hour = 0; hour < 24; hour++) {
+                    timingData[day][hour] = {
+                        count: 0,
+                        totalViews: 0,
+                        totalLikes: 0,
+                        totalComments: 0,
+                        videos: []
+                    };
+                }
+            }
+            
+            // Process all videos
+            Object.values(this.videoData).flat().forEach(video => {
+                if (video && video.publish_time) {
+                    const publishDate = new Date(video.publish_time);
+                    const day = publishDate.getDay(); // 0-6 (Sun-Sat)
+                    const hour = publishDate.getHours(); // 0-23
+                    
+                    const slot = timingData[day][hour];
+                    slot.count++;
+                    slot.totalViews += video.views || 0;
+                    slot.totalLikes += video.likes || 0;
+                    slot.totalComments += video.comment_count || 0;
+                    slot.videos.push({
+                        title: video.title,
+                        views: video.views,
+                        country: video.country
+                    });
+                }
+            });
+            
+            // Convert to array format for visualization
+            const heatmapArray = [];
+            for (let day = 0; day < 7; day++) {
+                for (let hour = 0; hour < 24; hour++) {
+                    const slot = timingData[day][hour];
+                    heatmapArray.push({
+                        day: day,
+                        dayName: daysOfWeek[day],
+                        hour: hour,
+                        count: slot.count,
+                        avgViews: slot.count > 0 ? slot.totalViews / slot.count : 0,
+                        avgLikes: slot.count > 0 ? slot.totalLikes / slot.count : 0,
+                        avgComments: slot.count > 0 ? slot.totalComments / slot.count : 0,
+                        totalViews: slot.totalViews,
+                        successRate: slot.count > 0 ? (slot.totalViews / slot.count) / 1000000 : 0, // Normalized success
+                        videos: slot.videos
+                    });
+                }
+            }
+            
+            return {
+                data: heatmapArray,
+                days: daysOfWeek,
+                maxSuccess: Math.max(...heatmapArray.map(d => d.successRate))
+            };
+            
+        } catch (error) {
+            console.error('Error processing publishing timing data:', error);
+            return { data: [], days: [], maxSuccess: 0 };
+        }
+    }
+
+    // Get channel timeline data for success tracking
     getChannelTimelineData(countriesFilter = 'all', minViews = 10000) {
         try {
-            const countries = Object.keys(this.videoData);
-            let countriesToShow = countries;
-            
-            if (countriesFilter === 'top5') {
-                const countryStats = countries.map(country => {
-                    const videos = this.videoData[country] || [];
-                    const totalViews = videos.reduce((sum, video) => sum + (video.views || 0), 0);
-                    return { country, totalViews };
-                }).sort((a, b) => b.totalViews - a.totalViews).slice(0, 5);
-                
-                countriesToShow = countryStats.map(stat => stat.country);
-            } else if (countriesFilter === 'top3') {
-                const countryStats = countries.map(country => {
-                    const videos = this.videoData[country] || [];
-                    const totalViews = videos.reduce((sum, video) => sum + (video.views || 0), 0);
-                    return { country, totalViews };
-                }).sort((a, b) => b.totalViews - a.totalViews).slice(0, 3);
-                
-                countriesToShow = countryStats.map(stat => stat.country);
-            }
+            const filteredVideos = countriesFilter === 'all' ? 
+                Object.values(this.videoData).flat() : 
+                (this.videoData[countriesFilter] || []);
 
-            // Collect all qualifying videos from selected countries
-            const channelTimelineData = [];
-            
-            countriesToShow.forEach(country => {
-                const videos = this.videoData[country] || [];
-                
-                videos.forEach(video => {
-                    // Only include videos with sufficient views and valid dates
-                    if (video.views >= minViews && video.publish_time) {
-                        channelTimelineData.push({
-                            ...video,
-                            country: country,
-                            countryDisplay: this.getCountryDisplayName(country)
-                        });
-                    }
-                });
-            });
+            // Filter videos by minimum views and valid publish time
+            const validVideos = filteredVideos.filter(video => 
+                video && 
+                video.views >= minViews && 
+                video.publish_time && 
+                video.channel_title
+            );
 
-            console.log(`Generated channel timeline data for ${channelTimelineData.length} videos across ${countriesToShow.length} countries`);
-            return channelTimelineData;
+            return validVideos;
         } catch (error) {
-            console.error('Error in getChannelTimelineData:', error);
+            console.error('Error processing channel timeline data:', error);
             return [];
         }
     }
