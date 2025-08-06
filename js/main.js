@@ -204,7 +204,7 @@ class YouTubeDataVisualization {
                     break;
 
                 case 'radar':
-                    this.renderRadar(container);
+                    this.renderCountryPerformanceHeatmap(container);
                     break;
 
                 default:
@@ -634,20 +634,20 @@ class YouTubeDataVisualization {
         }
     }
 
-    // Render Radar chart
-    renderRadar(container) {
+    // Render Country Performance Heatmap
+    renderCountryPerformanceHeatmap(container) {
         try {
             // Get current filter values
             const metricsType = document.getElementById('radar-metrics')?.value || 'engagement';
             const countriesFilter = document.getElementById('radar-countries')?.value || 'all';
             
-            // Get radar data
-            const radarData = this.dataLoader.getRadarData(metricsType, countriesFilter);
+            // Get heatmap data (reusing the same data structure)
+            const heatmapData = this.dataLoader.getRadarData(metricsType, countriesFilter);
             
-            this.visualizations.createRadarChart(radarData, container);
+            this.visualizations.createCountryPerformanceHeatmap(heatmapData, container);
         } catch (error) {
-            console.error('Error rendering Radar:', error);
-            this.showVisualizationError(container, `Error rendering Radar: ${error.message}`);
+            console.error('Error rendering Country Performance Heatmap:', error);
+            this.showVisualizationError(container, `Error rendering Country Performance Heatmap: ${error.message}`);
         }
     }
 
@@ -673,7 +673,7 @@ class YouTubeDataVisualization {
             metricsFilter.addEventListener('change', () => {
                 const container = document.querySelector('#radar .chart-container');
                 if (container) {
-                    this.renderRadar(container);
+                    this.renderCountryPerformanceHeatmap(container);
                 }
             });
         }
@@ -682,7 +682,7 @@ class YouTubeDataVisualization {
             countriesFilter.addEventListener('change', () => {
                 const container = document.querySelector('#radar .chart-container');
                 if (container) {
-                    this.renderRadar(container);
+                    this.renderCountryPerformanceHeatmap(container);
                 }
             });
         }

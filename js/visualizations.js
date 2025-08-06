@@ -1190,8 +1190,8 @@ class Visualizations {
         }
     }
 
-    // 8. Radar Chart - Country Performance Comparison
-    createRadarChart(data, container) {
+    // 8. Country Performance Heatmap - Better than Radar for Multi-Metric Comparison
+    createCountryPerformanceHeatmap(data, container) {
         this.clearVisualization(container);
         
         if (!data || data.length === 0) {
@@ -1205,15 +1205,16 @@ class Visualizations {
                 .attr('y', 150)
                 .attr('text-anchor', 'middle')
                 .style('font-size', '16px')
-                .text('No data available for radar chart');
+                .text('No data available for country performance heatmap');
             return;
         }
         
         const containerRect = container.getBoundingClientRect();
         const width = containerRect.width;
         const height = containerRect.height;
-        const margin = { top: 80, right: 180, bottom: 80, left: 80 };
-        const radius = Math.min(width - margin.left - margin.right, height - margin.top - margin.bottom) / 2 - 50;
+        const margin = { top: 80, right: 60, bottom: 100, left: 120 };
+        const chartWidth = width - margin.left - margin.right;
+        const chartHeight = height - margin.top - margin.bottom;
 
         const svg = d3.select(container)
             .append('svg')
@@ -1228,7 +1229,7 @@ class Visualizations {
             .style('font-size', '18px')
             .style('font-weight', 'bold')
             .style('fill', '#2c3e50')
-            .text('Country Performance Comparison');
+            .text('Country Performance Matrix');
 
         svg.append('text')
             .attr('x', width / 2)
@@ -1236,319 +1237,228 @@ class Visualizations {
             .attr('text-anchor', 'middle')
             .style('font-size', '12px')
             .style('fill', '#7f8c8d')
-            .text('Radar chart comparing countries across multiple metrics (hover for values)');
+            .text('Darker colors indicate better performance (hover for exact values)');
 
-        const g = svg.append('g')
-            .attr('transform', `translate(${width / 2},${height / 2})`);
+        const chartGroup = svg.append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
 
-        // Determine metrics based on what's available in the data
-        const availableMetrics = [];
+        // Determine available metrics
         const sampleData = data[0];
-        
-        // Check which metrics are available in the data
         const possibleMetrics = {
             'avgViews': 'Avg Views',
             'avgLikes': 'Avg Likes',
             'avgComments': 'Avg Comments',
             'engagementRate': 'Engagement Rate',
-            'avgDislikes': 'Avg Dislikes',
             'totalVideos': 'Total Videos',
             'categoryDiversity': 'Category Diversity'
         };
         
-        Object.keys(possibleMetrics).forEach(metric => {
-            if (sampleData && sampleData[metric] !== undefined) {
-                availableMetrics.push(metric);
-            }
-        });
+        const availableMetrics = Object.keys(possibleMetrics).filter(metric => 
+            sampleData && sampleData[metric] !== undefined
+        );
         
-        // Fallback to basic metrics if none found
         if (availableMetrics.length === 0) {
-            availableMetrics.push('avgViews', 'avgLikes', 'engagementRate');
-        }
-        
-        // Limit to 6 metrics for clarity and better spacing
-        const metrics = availableMetrics.slice(0, 6);
-        const metricLabels = possibleMetrics;
-
-        if (metrics.length === 0) {
-            g.append('text')
+            chartGroup.append('text')
+                .attr('x', chartWidth / 2)
+                .attr('y', chartHeight / 2)
                 .attr('text-anchor', 'middle')
                 .style('font-size', '16px')
-                .text('No valid metrics found for radar chart');
+                .text('No valid metrics found');
             return;
         }
 
-        // Create angle scale
-        const angleScale = d3.scalePoint()
-            .domain(metrics)
-            .range([0, 2 * Math.PI]);
+        const metrics = availableMetrics.slice(0, 6); // Limit for better visibility
+        const countries = data.map(d => d.country);
 
-        // Create radius scale for each metric
-        const radiusScales = {};
-        const maxValues = {};
+        // Create scales
+        const xScale = d3.scaleBand()
+            .domain(metrics)
+            .range([0, chartWidth])
+            .padding(0.1);
+
+        const yScale = d3.scaleBand()
+            .domain(countries)
+            .range([0, chartHeight])
+            .padding(0.1);
+
+        // Normalize data for each metric (0-1 scale for consistent coloring)
+        const normalizedData = {};
         metrics.forEach(metric => {
             const values = data.map(d => d[metric]).filter(v => v !== undefined && v !== null && !isNaN(v));
             if (values.length > 0) {
-                const maxValue = d3.max(values);
-                const minValue = d3.min(values);
-                maxValues[metric] = maxValue;
-                radiusScales[metric] = d3.scaleLinear()
-                    .domain([Math.min(0, minValue), maxValue])
-                    .range([0, radius]);
-            } else {
-                maxValues[metric] = 1;
-                radiusScales[metric] = d3.scaleLinear()
-                    .domain([0, 1])
-                    .range([0, radius]);
-            }
-        });
-
-        // Draw background circles with value indicators
-        const levels = 5;
-        for (let i = 1; i <= levels; i++) {
-            const levelRadius = (radius / levels) * i;
-            
-            // Background circles
-            g.append('circle')
-                .attr('r', levelRadius)
-                .attr('fill', 'none')
-                .attr('stroke', i === levels ? '#bbb' : '#e0e0e0')
-                .attr('stroke-width', i === levels ? 2 : 1)
-                .attr('opacity', 0.7);
-            
-            // Add value labels on circles
-            if (i === levels) {
-                g.append('text')
-                    .attr('x', 5)
-                    .attr('y', -levelRadius + 5)
-                    .style('font-size', '10px')
-                    .style('fill', '#666')
-                    .text('Max');
-            }
-        }
-
-        // Draw axis lines and labels
-        metrics.forEach((metric, index) => {
-            const angle = angleScale(metric) - Math.PI / 2;
-            const x = Math.cos(angle) * radius;
-            const y = Math.sin(angle) * radius;
-            
-            // Axis line
-            g.append('line')
-                .attr('x1', 0)
-                .attr('y1', 0)
-                .attr('x2', x)
-                .attr('y2', y)
-                .attr('stroke', '#ccc')
-                .attr('stroke-width', 1.5);
-
-            // Metric labels with better positioning
-            const labelRadius = radius + 40;
-            const labelX = Math.cos(angle) * labelRadius;
-            const labelY = Math.sin(angle) * labelRadius;
-            
-            // Background for labels to improve readability
-            const labelGroup = g.append('g')
-                .attr('transform', `translate(${labelX}, ${labelY})`);
-            
-            const label = metricLabels[metric] || metric;
-            const labelBbox = { width: label.length * 6, height: 12 };
-            
-            labelGroup.append('rect')
-                .attr('x', -labelBbox.width / 2)
-                .attr('y', -labelBbox.height / 2)
-                .attr('width', labelBbox.width)
-                .attr('height', labelBbox.height)
-                .attr('fill', 'rgba(255, 255, 255, 0.9)')
-                .attr('stroke', '#ddd')
-                .attr('rx', 3);
-            
-            labelGroup.append('text')
-                .attr('text-anchor', 'middle')
-                .attr('dominant-baseline', 'middle')
-                .style('font-size', '11px')
-                .style('font-weight', 'bold')
-                .style('fill', '#2c3e50')
-                .text(label);
-
-            // Add max value indicators
-            const maxValueRadius = radius + 60;
-            const maxValueX = Math.cos(angle) * maxValueRadius;
-            const maxValueY = Math.sin(angle) * maxValueRadius;
-            
-            g.append('text')
-                .attr('x', maxValueX)
-                .attr('y', maxValueY)
-                .attr('text-anchor', 'middle')
-                .attr('dominant-baseline', 'middle')
-                .style('font-size', '9px')
-                .style('fill', '#666')
-                .text(d3.format('.2s')(maxValues[metric]));
-        });
-
-        // Limit to top 5 countries to reduce clutter
-        const topCountries = data.slice(0, 5);
-        
-        // Draw data polygons with better styling
-        topCountries.forEach((countryData, i) => {
-            const points = metrics.map(metric => {
-                const angle = angleScale(metric) - Math.PI / 2;
-                const value = countryData[metric] || 0;
-                const r = radiusScales[metric] ? radiusScales[metric](value) : 0;
-                return [Math.cos(angle) * r, Math.sin(angle) * r];
-            });
-
-            if (points.length > 0) {
-                const color = this.colorScale(i);
+                const min = d3.min(values);
+                const max = d3.max(values);
+                const range = max - min;
                 
-                // Create polygon with better styling
-                const polygon = g.append('polygon')
-                    .attr('points', points.map(p => p.join(',')).join(' '))
-                    .attr('fill', color)
-                    .attr('fill-opacity', 0.2)
-                    .attr('stroke', color)
-                    .attr('stroke-width', 2.5)
-                    .style('cursor', 'pointer')
-                    .on('mouseover', (event, d) => {
-                        // Highlight the polygon
-                        d3.select(event.currentTarget)
-                            .attr('fill-opacity', 0.4)
-                            .attr('stroke-width', 3);
-                        
-                        this.tooltip.transition().duration(200).style('opacity', 0.9);
-                        let tooltipContent = `<div style="background: rgba(0,0,0,0.9); color: white; padding: 12px; border-radius: 5px; font-size: 12px;">`;
-                        tooltipContent += `<strong style="color: ${color}; font-size: 14px;">${countryData.country}</strong><br/><br/>`;
-                        
-                        metrics.forEach(metric => {
-                            const value = countryData[metric] || 0;
-                            let formattedValue;
-                            if (metric.includes('Views') || metric.includes('views')) {
-                                formattedValue = d3.format('.2s')(value) + ' views';
-                            } else if (metric.includes('Likes') || metric.includes('likes') || metric.includes('Comments')) {
-                                formattedValue = d3.format('.2s')(value);
-                            } else if (metric.includes('Rate') || metric.includes('rate')) {
-                                formattedValue = d3.format('.2f')(value) + '%';
-                            } else {
-                                formattedValue = d3.format('.2f')(value);
-                            }
-                            tooltipContent += `<span style="color: #FFF;">${metricLabels[metric] || metric}:</span> <strong style="color: #FFD700;">${formattedValue}</strong><br/>`;
-                        });
-                        tooltipContent += '</div>';
-                        
-                        this.tooltip.html(tooltipContent)
-                            .style('left', (event.pageX + 10) + 'px')
-                            .style('top', (event.pageY - 28) + 'px');
-                    })
-                    .on('mouseout', (event, d) => {
-                        // Reset polygon styling
-                        d3.select(event.currentTarget)
-                            .attr('fill-opacity', 0.2)
-                            .attr('stroke-width', 2.5);
-                        this.tooltip.transition().duration(500).style('opacity', 0);
-                    });
-
-                // Add data points on vertices
-                points.forEach((point, j) => {
-                    g.append('circle')
-                        .attr('cx', point[0])
-                        .attr('cy', point[1])
-                        .attr('r', 4)
-                        .attr('fill', color)
-                        .attr('stroke', 'white')
-                        .attr('stroke-width', 2)
-                        .style('cursor', 'pointer')
-                        .on('mouseover', (event, d) => {
-                            const metric = metrics[j];
-                            const value = countryData[metric] || 0;
-                            let formattedValue;
-                            if (metric.includes('Views') || metric.includes('views')) {
-                                formattedValue = d3.format('.2s')(value) + ' views';
-                            } else if (metric.includes('Likes') || metric.includes('likes') || metric.includes('Comments')) {
-                                formattedValue = d3.format('.2s')(value);
-                            } else if (metric.includes('Rate') || metric.includes('rate')) {
-                                formattedValue = d3.format('.2f')(value) + '%';
-                            } else {
-                                formattedValue = d3.format('.2f')(value);
-                            }
-                            
-                            this.tooltip.transition().duration(200).style('opacity', 0.9);
-                            this.tooltip.html(`
-                                <div style="background: rgba(0,0,0,0.9); color: white; padding: 8px; border-radius: 5px; font-size: 11px;">
-                                    <strong style="color: ${color};">${countryData.country}</strong><br/>
-                                    <span style="color: #FFF;">${metricLabels[metric] || metric}:</span><br/>
-                                    <strong style="color: #FFD700; font-size: 12px;">${formattedValue}</strong>
-                                </div>
-                            `)
-                            .style('left', (event.pageX + 10) + 'px')
-                            .style('top', (event.pageY - 28) + 'px');
-                        })
-                        .on('mouseout', () => {
-                            this.tooltip.transition().duration(500).style('opacity', 0);
-                        });
+                normalizedData[metric] = {};
+                data.forEach(countryData => {
+                    const value = countryData[metric];
+                    if (value !== undefined && value !== null && !isNaN(value)) {
+                        normalizedData[metric][countryData.country] = range > 0 ? (value - min) / range : 0;
+                    } else {
+                        normalizedData[metric][countryData.country] = 0;
+                    }
                 });
             }
         });
 
-        // Add improved legend with better positioning
-        const legend = svg.append('g')
-            .attr('transform', `translate(${width - 160}, 80)`);
+        // Color scale for heatmap
+        const colorScale = d3.scaleSequential(d3.interpolateBlues)
+            .domain([0, 1]);
 
-        legend.append('rect')
-            .attr('x', -10)
-            .attr('y', -15)
-            .attr('width', 150)
-            .attr('height', topCountries.length * 30 + 35)
-            .attr('fill', 'rgba(255, 255, 255, 0.95)')
-            .attr('stroke', '#ddd')
-            .attr('rx', 5);
+        // Create heatmap cells
+        metrics.forEach(metric => {
+            countries.forEach(country => {
+                const normalizedValue = normalizedData[metric] ? normalizedData[metric][country] : 0;
+                const actualValue = data.find(d => d.country === country)[metric];
+                
+                const cell = chartGroup.append('rect')
+                    .attr('x', xScale(metric))
+                    .attr('y', yScale(country))
+                    .attr('width', xScale.bandwidth())
+                    .attr('height', yScale.bandwidth())
+                    .attr('fill', colorScale(normalizedValue))
+                    .attr('stroke', '#fff')
+                    .attr('stroke-width', 1)
+                    .style('cursor', 'pointer')
+                    .on('mouseover', (event) => {
+                        // Highlight row and column
+                        chartGroup.selectAll('rect')
+                            .attr('opacity', 0.3);
+                        chartGroup.selectAll(`rect[data-country="${country}"]`)
+                            .attr('opacity', 1);
+                        chartGroup.selectAll(`rect[data-metric="${metric}"]`)
+                            .attr('opacity', 1);
+                        d3.select(event.currentTarget).attr('opacity', 1);
+                        
+                        // Format value based on metric type
+                        let formattedValue;
+                        if (metric.includes('Views') || metric.includes('views')) {
+                            formattedValue = d3.format('.2s')(actualValue) + ' views';
+                        } else if (metric.includes('Likes') || metric.includes('likes') || metric.includes('Comments')) {
+                            formattedValue = d3.format('.2s')(actualValue);
+                        } else if (metric.includes('Rate') || metric.includes('rate')) {
+                            formattedValue = d3.format('.2f')(actualValue) + '%';
+                        } else {
+                            formattedValue = d3.format('.2f')(actualValue);
+                        }
+                        
+                        this.tooltip.transition().duration(200).style('opacity', 0.9);
+                        this.tooltip.html(`
+                            <div style="background: rgba(0,0,0,0.9); color: white; padding: 12px; border-radius: 5px; font-size: 12px;">
+                                <strong style="color: #4CAF50;">${country}</strong><br/>
+                                <span style="color: #FFF;">${possibleMetrics[metric]}:</span><br/>
+                                <strong style="color: #FFD700; font-size: 14px;">${formattedValue}</strong><br/>
+                                <span style="color: #87CEEB;">Relative Performance: ${(normalizedValue * 100).toFixed(1)}%</span>
+                            </div>
+                        `)
+                        .style('left', (event.pageX + 10) + 'px')
+                        .style('top', (event.pageY - 28) + 'px');
+                    })
+                    .on('mouseout', () => {
+                        chartGroup.selectAll('rect').attr('opacity', 1);
+                        this.tooltip.transition().duration(500).style('opacity', 0);
+                    });
+                
+                // Add data attributes for highlighting
+                cell.attr('data-country', country)
+                    .attr('data-metric', metric);
+            });
+        });
 
-        legend.append('text')
-            .attr('x', 0)
-            .attr('y', 0)
+        // Add X-axis (metrics)
+        const xAxis = d3.axisBottom(xScale);
+        chartGroup.append('g')
+            .attr('transform', `translate(0, ${chartHeight})`)
+            .call(xAxis)
+            .selectAll('text')
+            .style('text-anchor', 'end')
+            .attr('dx', '-.8em')
+            .attr('dy', '.15em')
+            .attr('transform', 'rotate(-45)')
+            .style('font-size', '11px')
+            .style('font-weight', 'bold')
+            .text(d => possibleMetrics[d] || d);
+
+        // Add Y-axis (countries)
+        const yAxis = d3.axisLeft(yScale);
+        chartGroup.append('g')
+            .call(yAxis)
+            .selectAll('text')
+            .style('font-size', '11px')
+            .style('font-weight', 'bold');
+
+        // Add axis labels
+        svg.append('text')
+            .attr('transform', 'rotate(-90)')
+            .attr('y', margin.left / 2)
+            .attr('x', -(height / 2))
+            .attr('text-anchor', 'middle')
             .style('font-size', '14px')
             .style('font-weight', 'bold')
             .style('fill', '#2c3e50')
-            .text('Countries:');
+            .text('Countries');
 
-        topCountries.forEach((countryData, i) => {
-            const legendItem = legend.append('g')
-                .attr('transform', `translate(0, ${(i + 1) * 25})`)
-                .style('cursor', 'pointer')
-                .on('mouseover', () => {
-                    // Highlight corresponding polygon
-                    g.selectAll('polygon')
-                        .attr('opacity', (d, index) => index === i ? 1 : 0.3);
-                })
-                .on('mouseout', () => {
-                    // Reset all polygons
-                    g.selectAll('polygon').attr('opacity', 1);
-                });
+        svg.append('text')
+            .attr('x', width / 2)
+            .attr('y', height - 20)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '14px')
+            .style('font-weight', 'bold')
+            .style('fill', '#2c3e50')
+            .text('Performance Metrics');
 
-            legendItem.append('circle')
-                .attr('cx', 8)
-                .attr('cy', 0)
-                .attr('r', 8)
-                .attr('fill', this.colorScale(i))
-                .attr('stroke', 'white')
-                .attr('stroke-width', 2);
+        // Add color legend
+        const legendWidth = 200;
+        const legendHeight = 20;
+        const legend = svg.append('g')
+            .attr('transform', `translate(${width - legendWidth - 40}, ${margin.top - 40})`);
 
-            legendItem.append('text')
-                .attr('x', 25)
-                .attr('y', 5)
-                .style('font-size', '12px')
-                .style('fill', '#2c3e50')
-                .text(countryData.country);
-        });
+        // Create gradient for legend
+        const gradient = svg.append('defs')
+            .append('linearGradient')
+            .attr('id', 'heatmap-gradient')
+            .attr('x1', '0%')
+            .attr('x2', '100%');
+
+        gradient.append('stop')
+            .attr('offset', '0%')
+            .attr('stop-color', colorScale(0));
+
+        gradient.append('stop')
+            .attr('offset', '100%')
+            .attr('stop-color', colorScale(1));
+
+        legend.append('rect')
+            .attr('width', legendWidth)
+            .attr('height', legendHeight)
+            .style('fill', 'url(#heatmap-gradient)')
+            .attr('stroke', '#333')
+            .attr('stroke-width', 1);
+
+        legend.append('text')
+            .attr('x', 0)
+            .attr('y', -5)
+            .style('font-size', '11px')
+            .style('fill', '#666')
+            .text('Low Performance');
+
+        legend.append('text')
+            .attr('x', legendWidth)
+            .attr('y', -5)
+            .attr('text-anchor', 'end')
+            .style('font-size', '11px')
+            .style('fill', '#666')
+            .text('High Performance');
 
         // Add instructions
         svg.append('text')
             .attr('x', width / 2)
-            .attr('y', height - 15)
+            .attr('y', height - 5)
             .attr('text-anchor', 'middle')
             .style('font-size', '10px')
             .style('fill', '#999')
-            .text('Hover over countries or data points for detailed values');
+            .text('Hover over cells to see exact values and relative performance');
     }
 
 }
