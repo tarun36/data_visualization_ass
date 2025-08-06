@@ -200,11 +200,11 @@ class YouTubeDataVisualization {
                     break;
 
                 case 'sankey':
-                    this.renderSankey(container);
+                    this.renderPublishingTiming(container);
                     break;
 
                 case 'radar':
-                    this.renderChannelSuccessTimeline(container);
+                    this.renderTagNetwork(container);
                     break;
 
                 default:
@@ -618,61 +618,50 @@ class YouTubeDataVisualization {
         }
     }
 
-    // Render Sankey diagram
-    renderSankey(container) {
+    // Render Publishing Timing Heatmap
+    renderPublishingTiming(container) {
         try {
-            // Get current flow type
-            const flowType = document.getElementById('sankey-flow-type')?.value || 'country-category';
+            // Get publishing timing data
+            const timingData = this.dataLoader.getPublishingTimingData();
             
-            // Get Sankey data
-            const sankeyData = this.dataLoader.getSankeyData(flowType);
-            
-            this.visualizations.createSankeyDiagram(sankeyData, container);
+            this.visualizations.createPublishingTimingHeatmap(timingData, container);
         } catch (error) {
-            console.error('Error rendering Sankey:', error);
-            this.showVisualizationError(container, `Error rendering Sankey: ${error.message}`);
+            console.error('Error rendering Publishing Timing:', error);
+            this.showVisualizationError(container, `Error rendering Publishing Timing: ${error.message}`);
         }
     }
 
-    // Render Channel Success Timeline
-    renderChannelSuccessTimeline(container) {
+    // Render Tag Performance Network
+    renderTagNetwork(container) {
         try {
             // Get current filter values
-            const countriesFilter = document.getElementById('radar-countries')?.value || 'all';
+            const minFrequency = parseInt(document.getElementById('tag-frequency-filter')?.value) || 3;
             
-            // Get channel timeline data
-            const channelTimelineData = this.dataLoader.getChannelTimelineData(countriesFilter, 10000);
+            // Get tag network data
+            const tagNetworkData = this.dataLoader.getTagNetworkData(minFrequency);
             
-            this.visualizations.createChannelSuccessTimeline(channelTimelineData, container);
+            this.visualizations.createTagPerformanceNetwork(tagNetworkData, container);
         } catch (error) {
-            console.error('Error rendering Channel Success Timeline:', error);
-            this.showVisualizationError(container, `Error rendering Channel Success Timeline: ${error.message}`);
+            console.error('Error rendering Tag Network:', error);
+            this.showVisualizationError(container, `Error rendering Tag Network: ${error.message}`);
         }
     }
 
-    // Setup Sankey event listeners
+    // Setup Publishing Timing event listeners
     setupSankeyEventListeners() {
-        const flowTypeFilter = document.getElementById('sankey-flow-type');
-        if (flowTypeFilter) {
-            flowTypeFilter.addEventListener('change', () => {
-                const container = document.querySelector('#sankey .chart-container');
-                if (container) {
-                    this.renderSankey(container);
-                }
-            });
-        }
+        // Publishing timing heatmap doesn't need filters - it shows all data
+        // This function is kept for compatibility but does nothing
     }
 
-    // Setup Radar event listeners
+    // Setup Tag Network event listeners
     setupRadarEventListeners() {
-        const metricsFilter = document.getElementById('radar-metrics');
-        const countriesFilter = document.getElementById('radar-countries');
+        const frequencyFilter = document.getElementById('tag-frequency-filter');
 
-        if (countriesFilter) {
-            countriesFilter.addEventListener('change', () => {
+        if (frequencyFilter) {
+            frequencyFilter.addEventListener('change', () => {
                 const container = document.querySelector('#radar .chart-container');
                 if (container) {
-                    this.renderChannelSuccessTimeline(container);
+                    this.renderTagNetwork(container);
                 }
             });
         }

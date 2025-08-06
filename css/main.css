@@ -402,6 +402,79 @@ footer {
     font-size: 0.9em;
 }
 
+/* Publishing Timing Heatmap styles */
+.timing-cell:hover {
+    stroke: #333 !important;
+    stroke-width: 2px !important;
+}
+
+/* Tag Network styles */
+.nodes circle {
+    transition: opacity 0.2s ease;
+}
+
+.links line {
+    transition: opacity 0.2s ease;
+}
+
+/* Prevent text overlapping in charts */
+svg text {
+    user-select: none;
+    pointer-events: none;
+}
+
+svg text.interactive {
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+/* Ensure chart containers have adequate spacing */
+.chart-container {
+    overflow: hidden;
+    position: relative;
+}
+
+/* Prevent tooltip from being cut off */
+.tooltip {
+    z-index: 9999 !important;
+    max-width: 300px;
+    word-wrap: break-word;
+    white-space: normal;
+}
+
+/* Force minimum heights for network charts */
+#radar .chart-container {
+    min-height: 500px !important;
+}
+
+#sankey .chart-container {
+    min-height: 400px !important;
+}
+
+/* Responsive text sizing */
+@media (max-width: 768px) {
+    svg text {
+        font-size: 10px !important;
+    }
+    
+    .chart-container {
+        min-height: 350px !important;
+    }
+    
+    #radar .chart-container {
+        min-height: 400px !important;
+    }
+}
+
+/* Prevent overflow issues */
+.visualization {
+    overflow: visible;
+}
+
+.chart-container svg {
+    display: block;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .container {
