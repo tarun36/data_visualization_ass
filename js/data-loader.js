@@ -833,8 +833,8 @@ class DataLoader {
         }
     }
 
-    // Get viral journey data for the explorer
-    getViralJourneyData(countriesFilter = 'all', minViews = 50000) {
+    // Get channel timeline data for the success timeline
+    getChannelTimelineData(countriesFilter = 'all', minViews = 10000) {
         try {
             const countries = Object.keys(this.videoData);
             let countriesToShow = countries;
@@ -858,15 +858,15 @@ class DataLoader {
             }
 
             // Collect all qualifying videos from selected countries
-            const viralJourneyData = [];
+            const channelTimelineData = [];
             
             countriesToShow.forEach(country => {
                 const videos = this.videoData[country] || [];
                 
                 videos.forEach(video => {
-                    // Only include videos with sufficient engagement
-                    if (video.views >= minViews && video.publish_time && video.trending_date_parsed) {
-                        viralJourneyData.push({
+                    // Only include videos with sufficient views and valid dates
+                    if (video.views >= minViews && video.publish_time) {
+                        channelTimelineData.push({
                             ...video,
                             country: country,
                             countryDisplay: this.getCountryDisplayName(country)
@@ -875,14 +875,10 @@ class DataLoader {
                 });
             });
 
-            // Sort by views descending and limit to top 100 for performance
-            viralJourneyData.sort((a, b) => b.views - a.views);
-            const limitedData = viralJourneyData.slice(0, 100);
-
-            console.log(`Generated viral journey data for ${limitedData.length} videos across ${countriesToShow.length} countries`);
-            return limitedData;
+            console.log(`Generated channel timeline data for ${channelTimelineData.length} videos across ${countriesToShow.length} countries`);
+            return channelTimelineData;
         } catch (error) {
-            console.error('Error in getViralJourneyData:', error);
+            console.error('Error in getChannelTimelineData:', error);
             return [];
         }
     }

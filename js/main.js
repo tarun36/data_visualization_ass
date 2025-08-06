@@ -204,7 +204,7 @@ class YouTubeDataVisualization {
                     break;
 
                 case 'radar':
-                    this.renderViralJourneyExplorer(container);
+                    this.renderChannelSuccessTimeline(container);
                     break;
 
                 default:
@@ -634,19 +634,19 @@ class YouTubeDataVisualization {
         }
     }
 
-    // Render Viral Journey Explorer
-    renderViralJourneyExplorer(container) {
+    // Render Channel Success Timeline
+    renderChannelSuccessTimeline(container) {
         try {
             // Get current filter values
             const countriesFilter = document.getElementById('radar-countries')?.value || 'all';
             
-            // Get viral journey data
-            const viralJourneyData = this.dataLoader.getViralJourneyData(countriesFilter, 50000);
+            // Get channel timeline data
+            const channelTimelineData = this.dataLoader.getChannelTimelineData(countriesFilter, 10000);
             
-            this.visualizations.createViralJourneyExplorer(viralJourneyData, container);
+            this.visualizations.createChannelSuccessTimeline(channelTimelineData, container);
         } catch (error) {
-            console.error('Error rendering Viral Journey Explorer:', error);
-            this.showVisualizationError(container, `Error rendering Viral Journey Explorer: ${error.message}`);
+            console.error('Error rendering Channel Success Timeline:', error);
+            this.showVisualizationError(container, `Error rendering Channel Success Timeline: ${error.message}`);
         }
     }
 
@@ -672,7 +672,7 @@ class YouTubeDataVisualization {
             countriesFilter.addEventListener('change', () => {
                 const container = document.querySelector('#radar .chart-container');
                 if (container) {
-                    this.renderViralJourneyExplorer(container);
+                    this.renderChannelSuccessTimeline(container);
                 }
             });
         }

@@ -1190,8 +1190,8 @@ class Visualizations {
         }
     }
 
-    // 8. Viral Journey Explorer - Creative Timeline of Video Success Stories
-    createViralJourneyExplorer(data, container) {
+    // 8. Channel Success Timeline - Track Channel Growth Over Time
+    createChannelSuccessTimeline(data, container) {
         this.clearVisualization(container);
         
         if (!data || data.length === 0) {
@@ -1205,14 +1205,14 @@ class Visualizations {
                 .attr('y', 150)
                 .attr('text-anchor', 'middle')
                 .style('font-size', '16px')
-                .text('No viral journey data available');
+                .text('No channel timeline data available');
             return;
         }
         
         const containerRect = container.getBoundingClientRect();
         const width = containerRect.width;
         const height = containerRect.height;
-        const margin = { top: 80, right: 60, bottom: 100, left: 80 };
+        const margin = { top: 80, right: 200, bottom: 80, left: 80 };
         const chartWidth = width - margin.left - margin.right;
         const chartHeight = height - margin.top - margin.bottom;
 
@@ -1221,75 +1221,115 @@ class Visualizations {
             .attr('width', width)
             .attr('height', height);
 
-        // Add title with creative styling
-        const titleGroup = svg.append('g');
-        
-        titleGroup.append('text')
+        // Add title
+        svg.append('text')
             .attr('x', width / 2)
             .attr('y', 25)
             .attr('text-anchor', 'middle')
             .style('font-size', '20px')
             .style('font-weight', 'bold')
             .style('fill', '#2c3e50')
-            .text('🚀 Viral Journey Explorer');
+            .text('📈 Channel Success Timeline');
 
-        titleGroup.append('text')
+        svg.append('text')
             .attr('x', width / 2)
             .attr('y', 45)
             .attr('text-anchor', 'middle')
             .style('font-size', '12px')
             .style('fill', '#7f8c8d')
-            .text('Discover how videos traveled from upload to viral success');
+            .text('Track how channels grow and achieve viral success over time');
 
         const chartGroup = svg.append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
 
-        // Calculate viral velocity (days from publish to trending)
-        const processedData = data.map(d => {
-            const publishDate = new Date(d.publish_time);
-            const trendingDate = d.trending_date_parsed || new Date();
-            const daysToViral = Math.max(0, Math.floor((trendingDate - publishDate) / (1000 * 60 * 60 * 24)));
+        // Process data to create channel timelines
+        const channelData = new Map();
+        
+        data.forEach(video => {
+            const channelName = video.channel_title;
+            const publishDate = new Date(video.publish_time);
             
-            return {
-                ...d,
-                daysToViral,
-                publishDate,
-                trendingDate,
-                viralVelocity: daysToViral === 0 ? 'Instant' : daysToViral === 1 ? 'Lightning' : daysToViral <= 7 ? 'Fast' : 'Slow Burn',
-                engagementScore: (d.likes + d.comment_count) / Math.max(d.views, 1) * 100,
-                successLevel: d.views > 10000000 ? 'Mega Hit' : d.views > 1000000 ? 'Viral' : d.views > 100000 ? 'Popular' : 'Trending'
-            };
-        }).filter(d => d.daysToViral >= 0 && d.daysToViral <= 30); // Focus on videos that went viral within 30 days
+            if (!channelData.has(channelName)) {
+                channelData.set(channelName, []);
+            }
+            
+            channelData.get(channelName).push({
+                date: publishDate,
+                views: video.views || 0,
+                likes: video.likes || 0,
+                comments: video.comment_count || 0,
+                title: video.title,
+                category: video.category_name,
+                country: video.country
+            });
+        });
 
-        if (processedData.length === 0) {
+        // Sort videos by date for each channel and calculate cumulative metrics
+        const processedChannels = [];
+        channelData.forEach((videos, channelName) => {
+            videos.sort((a, b) => a.date - b.date);
+            
+            let cumulativeViews = 0;
+            let cumulativeVideos = 0;
+            let totalLikes = 0;
+            
+            const timeline = videos.map(video => {
+                cumulativeViews += video.views;
+                cumulativeVideos += 1;
+                totalLikes += video.likes;
+                
+                return {
+                    date: video.date,
+                    cumulativeViews,
+                    cumulativeVideos,
+                    totalLikes,
+                    avgViewsPerVideo: cumulativeViews / cumulativeVideos,
+                    latestVideo: video
+                };
+            });
+            
+            // Only include channels with multiple videos for meaningful timelines
+            if (timeline.length >= 2) {
+                processedChannels.push({
+                    name: channelName,
+                    timeline,
+                    totalViews: cumulativeViews,
+                    totalVideos: cumulativeVideos,
+                    category: videos[0].category,
+                    country: videos[0].country
+                });
+            }
+        });
+
+        // Sort by total views and take top channels
+        processedChannels.sort((a, b) => b.totalViews - a.totalViews);
+        const topChannels = processedChannels.slice(0, 8); // Show top 8 channels
+
+        if (topChannels.length === 0) {
             chartGroup.append('text')
                 .attr('x', chartWidth / 2)
                 .attr('y', chartHeight / 2)
                 .attr('text-anchor', 'middle')
                 .style('font-size', '16px')
-                .text('No viral journey data found');
+                .text('No multi-video channels found for timeline');
             return;
         }
 
         // Create scales
-        const xScale = d3.scaleLinear()
-            .domain([0, d3.max(processedData, d => d.daysToViral)])
+        const allDates = topChannels.flatMap(channel => channel.timeline.map(d => d.date));
+        const xScale = d3.scaleTime()
+            .domain(d3.extent(allDates))
             .range([0, chartWidth]);
 
-        const yScale = d3.scaleLog()
-            .domain([d3.min(processedData, d => Math.max(1000, d.views)), d3.max(processedData, d => d.views)])
+        const maxViews = d3.max(topChannels, channel => d3.max(channel.timeline, d => d.cumulativeViews));
+        const yScale = d3.scaleLinear()
+            .domain([0, maxViews])
             .range([chartHeight, 0]);
 
-        const sizeScale = d3.scaleSqrt()
-            .domain([0, d3.max(processedData, d => d.engagementScore)])
-            .range([3, 25]);
+        // Color scale for channels
+        const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
 
-        // Color scale based on success level
-        const colorScale = d3.scaleOrdinal()
-            .domain(['Trending', 'Popular', 'Viral', 'Mega Hit'])
-            .range(['#3498db', '#f39c12', '#e74c3c', '#9b59b6']);
-
-        // Add background grid for better readability
+        // Add grid
         const xAxisGrid = d3.axisBottom(xScale)
             .tickSize(-chartHeight)
             .tickFormat('');
@@ -1311,118 +1351,167 @@ class Visualizations {
             .style('stroke-dasharray', '3,3')
             .style('opacity', 0.3);
 
-        // Create journey paths (curved lines showing the viral trajectory)
+        // Create line generator
         const line = d3.line()
-            .x(d => xScale(d.x))
-            .y(d => yScale(d.y))
-            .curve(d3.curveBasis);
+            .x(d => xScale(d.date))
+            .y(d => yScale(d.cumulativeViews))
+            .curve(d3.curveMonotoneX);
 
-        // Add viral success zones
-        const zones = [
-            { name: 'Instant Viral', x: 0, width: xScale(1), color: '#e74c3c', opacity: 0.1 },
-            { name: 'Fast Track', x: xScale(1), width: xScale(7) - xScale(1), color: '#f39c12', opacity: 0.1 },
-            { name: 'Slow Burn', x: xScale(7), width: chartWidth - xScale(7), color: '#3498db', opacity: 0.1 }
-        ];
+        // Add area generator for growth visualization
+        const area = d3.area()
+            .x(d => xScale(d.date))
+            .y0(chartHeight)
+            .y1(d => yScale(d.cumulativeViews))
+            .curve(d3.curveMonotoneX);
 
-        zones.forEach(zone => {
-            chartGroup.append('rect')
-                .attr('x', zone.x)
-                .attr('y', 0)
-                .attr('width', zone.width)
-                .attr('height', chartHeight)
-                .attr('fill', zone.color)
-                .attr('opacity', zone.opacity);
-
-            chartGroup.append('text')
-                .attr('x', zone.x + zone.width / 2)
-                .attr('y', 20)
-                .attr('text-anchor', 'middle')
-                .style('font-size', '10px')
-                .style('font-weight', 'bold')
-                .style('fill', zone.color)
-                .style('opacity', 0.7)
-                .text(zone.name);
-        });
-
-        // Add video bubbles with creative styling
-        const bubbles = chartGroup.selectAll('.video-bubble')
-            .data(processedData)
+        // Create channel groups
+        const channelGroups = chartGroup.selectAll('.channel-group')
+            .data(topChannels)
             .enter().append('g')
-            .attr('class', 'video-bubble')
-            .attr('transform', d => `translate(${xScale(d.daysToViral)},${yScale(d.views)})`);
+            .attr('class', 'channel-group');
 
-        // Main bubble
-        bubbles.append('circle')
-            .attr('r', d => sizeScale(d.engagementScore))
-            .attr('fill', d => colorScale(d.successLevel))
-            .attr('stroke', '#fff')
-            .attr('stroke-width', 2)
+        let selectedChannel = null;
+
+        // Add area fills (initially hidden)
+        channelGroups.append('path')
+            .attr('class', 'area')
+            .attr('d', d => area(d.timeline))
+            .attr('fill', (d, i) => colorScale(i))
+            .attr('opacity', 0)
+            .style('pointer-events', 'none');
+
+        // Add timeline lines
+        channelGroups.append('path')
+            .attr('class', 'timeline-line')
+            .attr('d', d => line(d.timeline))
+            .attr('stroke', (d, i) => colorScale(i))
+            .attr('stroke-width', 3)
+            .attr('fill', 'none')
+            .attr('opacity', 0.7)
             .style('cursor', 'pointer')
-            .style('filter', 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))')
-            .on('mouseover', (event, d) => {
-                // Highlight the bubble
-                d3.select(event.currentTarget)
+            .on('mouseover', function(event, d) {
+                // Highlight this line
+                d3.select(this)
+                    .attr('stroke-width', 5)
+                    .attr('opacity', 1);
+                
+                // Show area fill
+                d3.select(this.parentNode).select('.area')
                     .transition()
                     .duration(200)
-                    .attr('r', sizeScale(d.engagementScore) * 1.3)
-                    .style('filter', 'drop-shadow(4px 4px 8px rgba(0,0,0,0.5))');
+                    .attr('opacity', 0.1);
+            })
+            .on('mouseout', function(event, d) {
+                if (selectedChannel !== d) {
+                    d3.select(this)
+                        .attr('stroke-width', 3)
+                        .attr('opacity', 0.7);
+                    
+                    d3.select(this.parentNode).select('.area')
+                        .transition()
+                        .duration(200)
+                        .attr('opacity', 0);
+                }
+            })
+            .on('click', function(event, d) {
+                // Toggle selection
+                if (selectedChannel === d) {
+                    selectedChannel = null;
+                    // Reset all lines
+                    chartGroup.selectAll('.timeline-line')
+                        .attr('stroke-width', 3)
+                        .attr('opacity', 0.7);
+                    chartGroup.selectAll('.area')
+                        .attr('opacity', 0);
+                    chartGroup.selectAll('.milestone')
+                        .attr('opacity', 0.6);
+                } else {
+                    selectedChannel = d;
+                    // Dim all other lines
+                    chartGroup.selectAll('.timeline-line')
+                        .attr('opacity', 0.2)
+                        .attr('stroke-width', 2);
+                    // Highlight selected line
+                    d3.select(this)
+                        .attr('opacity', 1)
+                        .attr('stroke-width', 5);
+                    // Show area for selected
+                    d3.select(this.parentNode).select('.area')
+                        .attr('opacity', 0.15);
+                    // Highlight milestones for selected channel
+                    chartGroup.selectAll('.milestone')
+                        .attr('opacity', milestone => milestone.channel === d.name ? 1 : 0.1);
+                }
+            });
 
-                // Show detailed story card
+        // Add milestone points (major video releases)
+        const milestones = [];
+        topChannels.forEach(channel => {
+            channel.timeline.forEach(point => {
+                // Consider it a milestone if it's a significant jump in views
+                const prevPoint = channel.timeline[channel.timeline.indexOf(point) - 1];
+                if (prevPoint) {
+                    const viewsGrowth = point.cumulativeViews - prevPoint.cumulativeViews;
+                    if (viewsGrowth > maxViews * 0.1) { // 10% of max views
+                        milestones.push({
+                            ...point,
+                            channel: channel.name,
+                            channelIndex: topChannels.indexOf(channel),
+                            growth: viewsGrowth
+                        });
+                    }
+                }
+            });
+        });
+
+        chartGroup.selectAll('.milestone')
+            .data(milestones)
+            .enter().append('circle')
+            .attr('class', 'milestone')
+            .attr('cx', d => xScale(d.date))
+            .attr('cy', d => yScale(d.cumulativeViews))
+            .attr('r', 6)
+            .attr('fill', d => colorScale(d.channelIndex))
+            .attr('stroke', '#fff')
+            .attr('stroke-width', 2)
+            .attr('opacity', 0.6)
+            .style('cursor', 'pointer')
+            .on('mouseover', (event, d) => {
                 this.tooltip.transition().duration(200).style('opacity', 0.95);
                 this.tooltip.html(`
-                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 10px; font-size: 12px; max-width: 300px;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 10px; font-size: 12px; max-width: 280px;">
                         <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                            <span style="font-size: 24px; margin-right: 8px;">${d.successLevel === 'Mega Hit' ? '🏆' : d.successLevel === 'Viral' ? '🚀' : d.successLevel === 'Popular' ? '⭐' : '📈'}</span>
-                            <strong style="font-size: 14px; color: #FFD700;">${d.successLevel} Story</strong>
+                            <span style="font-size: 24px; margin-right: 8px;">🚀</span>
+                            <strong style="font-size: 14px; color: #FFD700;">Growth Milestone</strong>
                         </div>
                         
                         <div style="background: rgba(255,255,255,0.1); padding: 8px; border-radius: 5px; margin-bottom: 8px;">
-                            <strong style="color: #FFD700;">"${d.title.length > 40 ? d.title.substring(0, 40) + '...' : d.title}"</strong><br/>
-                            <span style="color: #87CEEB; font-size: 10px;">by ${d.channel_title}</span>
+                            <strong style="color: #FFD700;">${d.channel}</strong><br/>
+                            <span style="color: #87CEEB; font-size: 10px;">"${d.latestVideo.title.length > 35 ? d.latestVideo.title.substring(0, 35) + '...' : d.latestVideo.title}"</span>
                         </div>
                         
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;">
-                            <div><strong>📊 Views:</strong> ${d3.format('.2s')(d.views)}</div>
-                            <div><strong>❤️ Likes:</strong> ${d3.format('.2s')(d.likes)}</div>
-                            <div><strong>💬 Comments:</strong> ${d3.format('.2s')(d.comment_count)}</div>
-                            <div><strong>⚡ Speed:</strong> ${d.viralVelocity}</div>
+                            <div><strong>📅 Date:</strong> ${d.date.toLocaleDateString()}</div>
+                            <div><strong>📊 Total Views:</strong> ${d3.format('.2s')(d.cumulativeViews)}</div>
+                            <div><strong>🎬 Videos:</strong> ${d.cumulativeVideos}</div>
+                            <div><strong>📈 Growth:</strong> +${d3.format('.2s')(d.growth)}</div>
                         </div>
                         
-                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.3);">
-                            <strong style="color: #FFD700;">Viral Journey:</strong> ${d.daysToViral} days from upload to trending<br/>
-                            <strong style="color: #FFD700;">Engagement Score:</strong> ${d.engagementScore.toFixed(2)}%
+                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 10px; color: #87CEEB;">
+                            Click channel line to focus • Hover for details
                         </div>
                     </div>
                 `)
                 .style('left', (event.pageX + 10) + 'px')
                 .style('top', (event.pageY - 100) + 'px');
             })
-            .on('mouseout', (event, d) => {
-                d3.select(event.currentTarget)
-                    .transition()
-                    .duration(200)
-                    .attr('r', sizeScale(d.engagementScore))
-                    .style('filter', 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))');
-
+            .on('mouseout', () => {
                 this.tooltip.transition().duration(500).style('opacity', 0);
             });
 
-        // Add small icons/emojis on bubbles based on success level
-        bubbles.append('text')
-            .attr('text-anchor', 'middle')
-            .attr('dy', '0.35em')
-            .style('font-size', d => `${Math.min(12, sizeScale(d.engagementScore) * 0.8)}px`)
-            .style('pointer-events', 'none')
-            .text(d => {
-                if (d.successLevel === 'Mega Hit') return '🏆';
-                if (d.successLevel === 'Viral') return '🚀';
-                if (d.successLevel === 'Popular') return '⭐';
-                return '📈';
-            });
-
-        // Add axes with creative styling
+        // Add axes
         const xAxis = d3.axisBottom(xScale)
-            .tickFormat(d => d === 0 ? 'Same Day' : `${d} days`);
+            .tickFormat(d3.timeFormat('%b %Y'));
             
         const yAxis = d3.axisLeft(yScale)
             .tickFormat(d3.format('.2s'));
@@ -1431,12 +1520,15 @@ class Visualizations {
             .attr('transform', `translate(0,${chartHeight})`)
             .call(xAxis)
             .style('font-size', '11px')
-            .style('font-weight', 'bold');
+            .selectAll('text')
+            .style('text-anchor', 'end')
+            .attr('dx', '-.8em')
+            .attr('dy', '.15em')
+            .attr('transform', 'rotate(-45)');
 
         chartGroup.append('g')
             .call(yAxis)
-            .style('font-size', '11px')
-            .style('font-weight', 'bold');
+            .style('font-size', '11px');
 
         // Add axis labels
         svg.append('text')
@@ -1447,7 +1539,7 @@ class Visualizations {
             .style('font-size', '14px')
             .style('font-weight', 'bold')
             .style('fill', '#2c3e50')
-            .text('📈 Total Views');
+            .text('📊 Cumulative Views');
 
         svg.append('text')
             .attr('x', width / 2)
@@ -1456,9 +1548,9 @@ class Visualizations {
             .style('font-size', '14px')
             .style('font-weight', 'bold')
             .style('fill', '#2c3e50')
-            .text('⏱️ Days from Upload to Trending');
+            .text('📅 Timeline');
 
-        // Add creative legend
+        // Add interactive legend
         const legend = svg.append('g')
             .attr('transform', `translate(${width - 180}, 80)`);
 
@@ -1466,7 +1558,7 @@ class Visualizations {
             .attr('x', -10)
             .attr('y', -15)
             .attr('width', 170)
-            .attr('height', 120)
+            .attr('height', Math.min(topChannels.length * 25 + 50, 300))
             .attr('fill', 'rgba(255, 255, 255, 0.95)')
             .attr('stroke', '#ddd')
             .attr('rx', 8);
@@ -1477,41 +1569,49 @@ class Visualizations {
             .style('font-size', '12px')
             .style('font-weight', 'bold')
             .style('fill', '#2c3e50')
-            .text('🎯 Success Levels:');
+            .text('📺 Top Channels:');
 
-        const legendItems = [
-            { level: 'Mega Hit', color: '#9b59b6', icon: '🏆' },
-            { level: 'Viral', color: '#e74c3c', icon: '🚀' },
-            { level: 'Popular', color: '#f39c12', icon: '⭐' },
-            { level: 'Trending', color: '#3498db', icon: '📈' }
-        ];
-
-        legendItems.forEach((item, i) => {
+        topChannels.forEach((channel, i) => {
             const legendItem = legend.append('g')
-                .attr('transform', `translate(0, ${(i + 1) * 20})`);
+                .attr('transform', `translate(0, ${(i + 1) * 25})`)
+                .style('cursor', 'pointer')
+                .on('click', () => {
+                    // Simulate click on the corresponding line
+                    const line = chartGroup.selectAll('.timeline-line').nodes()[i];
+                    line.dispatchEvent(new Event('click'));
+                });
 
-            legendItem.append('circle')
-                .attr('cx', 8)
-                .attr('cy', 0)
-                .attr('r', 6)
-                .attr('fill', item.color);
+            legendItem.append('line')
+                .attr('x1', 0)
+                .attr('x2', 20)
+                .attr('y1', 0)
+                .attr('y2', 0)
+                .attr('stroke', colorScale(i))
+                .attr('stroke-width', 3);
 
             legendItem.append('text')
-                .attr('x', 18)
+                .attr('x', 25)
                 .attr('y', 5)
                 .style('font-size', '10px')
                 .style('fill', '#2c3e50')
-                .text(`${item.icon} ${item.level}`);
+                .text(channel.name.length > 18 ? channel.name.substring(0, 18) + '...' : channel.name);
+
+            legendItem.append('text')
+                .attr('x', 25)
+                .attr('y', 18)
+                .style('font-size', '8px')
+                .style('fill', '#7f8c8d')
+                .text(`${d3.format('.1s')(channel.totalViews)} views • ${channel.totalVideos} videos`);
         });
 
-        // Add interaction instructions
+        // Add instructions
         svg.append('text')
             .attr('x', width / 2)
             .attr('y', height - 5)
             .attr('text-anchor', 'middle')
             .style('font-size', '10px')
             .style('fill', '#999')
-            .text('💡 Hover over bubbles to explore each video\'s viral journey story');
+            .text('💡 Click channel lines to focus • Hover milestones for video details • Click legend to select channels');
     }
 
 }
