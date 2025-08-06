@@ -1630,7 +1630,7 @@ class Visualizations {
             return;
         }
 
-        const margin = { top: 60, right: 80, bottom: 60, left: 80 };
+        const margin = { top: 60, right: 80, bottom: 120, left: 80 };
         const containerRect = container.getBoundingClientRect();
         const width = containerRect.width - margin.left - margin.right;
         const height = containerRect.height - margin.top - margin.bottom;
@@ -1720,7 +1720,7 @@ class Visualizations {
         const legendWidth = 200;
         const legendHeight = 15;
         const legend = svg.append('g')
-            .attr('transform', `translate(${width + margin.left - legendWidth}, ${margin.top + height + 35})`);
+            .attr('transform', `translate(${width + margin.left - legendWidth}, ${margin.top + height + 25})`);
 
         const legendScale = d3.scaleLinear()
             .domain([0, data.maxSuccess])
@@ -1763,22 +1763,22 @@ class Visualizations {
         // Add instructions
         svg.append('text')
             .attr('x', (width + margin.left + margin.right) / 2)
-            .attr('y', height + margin.top + margin.bottom - 10)
+            .attr('y', height + margin.top + margin.bottom - 25)
             .attr('text-anchor', 'middle')
             .style('font-size', '11px')
             .style('fill', '#999')
             .text('💡 Hover cells to see publishing stats • Darker colors = better performance');
     }
 
-    // 10. Tag Performance Dashboard - Comprehensive Tag Analysis
-    createTagPerformanceDashboard(data, container) {
+    // 10. Tag Relationship Matrix - Tag-Category Analysis
+    createTagRelationshipMatrix(data, container) {
         this.clearVisualization(container);
         
-        if (!data || !data.globalTags || data.globalTags.length === 0) {
+        if (!data || !data.matrixData || data.matrixData.length === 0) {
             container.innerHTML = `
                 <div style="display: flex; align-items: center; justify-content: center; height: 100%; background-color: #f8f9fa; border-radius: 5px;">
                     <div style="text-align: center; color: #6c757d;">
-                        <h4>No Tag Data Available</h4>
+                        <h4>No Tag Matrix Data Available</h4>
                         <p>Waiting for video tag data to load...</p>
                     </div>
                 </div>
@@ -1786,309 +1786,151 @@ class Visualizations {
             return;
         }
 
+        const margin = { top: 80, right: 50, bottom: 120, left: 150 };
         const containerRect = container.getBoundingClientRect();
-        const totalWidth = containerRect.width;
-        const totalHeight = containerRect.height;
+        const width = containerRect.width - margin.left - margin.right;
+        const height = containerRect.height - margin.top - margin.bottom;
 
-        // Create main container
-        const mainDiv = d3.select(container)
-            .append('div')
-            .style('width', '100%')
-            .style('height', '100%')
-            .style('display', 'flex')
-            .style('flex-direction', 'column');
+        const cellWidth = Math.max(20, width / data.categories.length);
+        const cellHeight = Math.max(20, height / data.tags.length);
 
-        // Add title
-        mainDiv.append('div')
-            .style('text-align', 'center')
-            .style('padding', '10px')
-            .style('background', '#f8f9fa')
-            .style('border-bottom', '2px solid #e9ecef')
-            .append('h3')
-            .style('margin', '0')
-            .style('color', '#495057')
-            .text('🏷️ Tag Performance Dashboard');
-
-        // Create dashboard grid
-        const dashboardGrid = mainDiv.append('div')
-            .style('display', 'grid')
-            .style('grid-template-columns', '1fr 1fr')
-            .style('grid-template-rows', '1fr 1fr')
-            .style('gap', '15px')
-            .style('padding', '15px')
-            .style('flex', '1')
-            .style('overflow', 'hidden');
-
-        // Panel 1: Top Tags Cloud
-        this.createTopTagsPanel(dashboardGrid, data.globalTags.slice(0, 20));
-        
-        // Panel 2: Tag Performance Scatter
-        this.createTagPerformancePanel(dashboardGrid, data.globalTags.slice(0, 25));
-        
-        // Panel 3: Tags by Category
-        this.createTagCategoryPanel(dashboardGrid, data.tagsByCategory);
-        
-        // Panel 4: Tags by Country
-        this.createTagCountryPanel(dashboardGrid, data.tagsByCountry);
-
-        // Add stats footer
-        mainDiv.append('div')
-            .style('text-align', 'center')
-            .style('padding', '10px')
-            .style('background', '#f8f9fa')
-            .style('border-top', '1px solid #e9ecef')
-            .style('font-size', '12px')
-            .style('color', '#6c757d')
-            .html(`📊 Total Tags: ${data.stats.totalUniqueTags} • Shown: ${data.stats.topTagsShown} • Avg per Video: ${(data.stats.avgTagsPerVideo || 0).toFixed(1)}`);
-    }
-
-    // Helper: Create Top Tags Panel (Word Cloud Style)
-    createTopTagsPanel(parent, tags) {
-        const panel = parent.append('div')
-            .style('background', 'white')
-            .style('border', '1px solid #dee2e6')
-            .style('border-radius', '8px')
-            .style('padding', '15px')
-            .style('overflow', 'hidden');
-
-        panel.append('h4')
-            .style('margin', '0 0 15px 0')
-            .style('color', '#495057')
-            .style('font-size', '16px')
-            .text('🌍 Global Top Tags');
-
-        const tagContainer = panel.append('div')
-            .style('display', 'flex')
-            .style('flex-wrap', 'wrap')
-            .style('gap', '8px')
-            .style('align-items', 'center')
-            .style('justify-content', 'center')
-            .style('height', 'calc(100% - 40px)')
-            .style('overflow', 'auto');
-
-        const maxCount = Math.max(...tags.map(d => d.count));
-        const minCount = Math.min(...tags.map(d => d.count));
-        const sizeScale = d3.scaleLinear()
-            .domain([minCount, maxCount])
-            .range([12, 28]);
-
-        const colorScale = d3.scaleSequential(d3.interpolateBlues)
-            .domain([minCount, maxCount]);
-
-        tagContainer.selectAll('.tag-bubble')
-            .data(tags)
-            .enter().append('div')
-            .attr('class', 'tag-bubble')
-            .style('display', 'inline-block')
-            .style('padding', '6px 12px')
-            .style('margin', '2px')
-            .style('background', d => colorScale(d.count))
-            .style('color', 'white')
-            .style('border-radius', '20px')
-            .style('font-size', d => `${sizeScale(d.count)}px`)
-            .style('font-weight', 'bold')
-            .style('cursor', 'pointer')
-            .style('transition', 'transform 0.2s')
-            .text(d => d.tag)
-            .on('mouseover', function(event, d) {
-                d3.select(this).style('transform', 'scale(1.1)');
-                parent.select('.tooltip').remove();
-                parent.append('div')
-                    .attr('class', 'tooltip')
-                    .style('position', 'absolute')
-                    .style('background', 'rgba(0,0,0,0.8)')
-                    .style('color', 'white')
-                    .style('padding', '8px')
-                    .style('border-radius', '4px')
-                    .style('font-size', '12px')
-                    .style('pointer-events', 'none')
-                    .style('z-index', '1000')
-                    .html(`
-                        <strong>${d.tag}</strong><br/>
-                        Count: ${d.count}<br/>
-                        Avg Views: ${d.avgViews.toLocaleString()}<br/>
-                        Categories: ${d.categoryCount}<br/>
-                        Countries: ${d.countryCount}
-                    `)
-                    .style('left', (event.pageX + 10) + 'px')
-                    .style('top', (event.pageY - 10) + 'px');
-            })
-            .on('mouseout', function() {
-                d3.select(this).style('transform', 'scale(1)');
-                parent.select('.tooltip').remove();
-            });
-    }
-
-    // Helper: Create Tag Performance Panel (Scatter Plot)
-    createTagPerformancePanel(parent, tags) {
-        const panel = parent.append('div')
-            .style('background', 'white')
-            .style('border', '1px solid #dee2e6')
-            .style('border-radius', '8px')
-            .style('padding', '15px');
-
-        panel.append('h4')
-            .style('margin', '0 0 10px 0')
-            .style('color', '#495057')
-            .style('font-size', '16px')
-            .text('📈 Tag Performance');
-
-        const svg = panel.append('svg')
-            .style('width', '100%')
-            .style('height', 'calc(100% - 30px)');
-
-        const svgNode = svg.node();
-        const rect = svgNode.getBoundingClientRect();
-        const width = rect.width - 40;
-        const height = rect.height - 40;
+        const svg = d3.select(container)
+            .append('svg')
+            .attr('width', width + margin.left + margin.right)
+            .attr('height', height + margin.top + margin.bottom);
 
         const chartGroup = svg.append('g')
-            .attr('transform', 'translate(30, 20)');
+            .attr('transform', `translate(${margin.left},${margin.top})`);
 
-        const xScale = d3.scaleLinear()
-            .domain(d3.extent(tags, d => d.count))
-            .range([0, width]);
+        // Color scale
+        const colorScale = d3.scaleSequential(d3.interpolateYlOrRd)
+            .domain([0, data.stats.maxCount]);
 
-        const yScale = d3.scaleLinear()
-            .domain(d3.extent(tags, d => d.engagement))
-            .range([height, 0]);
-
-        const colorScale = d3.scaleSequential(d3.interpolateViridis)
-            .domain(d3.extent(tags, d => d.avgViews));
-
-        // Add axes
-        chartGroup.append('g')
-            .attr('transform', `translate(0, ${height})`)
-            .call(d3.axisBottom(xScale).ticks(5));
-
-        chartGroup.append('g')
-            .call(d3.axisLeft(yScale).ticks(5).tickFormat(d => `${(d * 100).toFixed(1)}%`));
-
-        // Add dots
-        chartGroup.selectAll('.performance-dot')
-            .data(tags)
-            .enter().append('circle')
-            .attr('class', 'performance-dot')
-            .attr('cx', d => xScale(d.count))
-            .attr('cy', d => yScale(d.engagement))
-            .attr('r', 4)
-            .attr('fill', d => colorScale(d.avgViews))
-            .attr('stroke', 'white')
+        // Create matrix cells
+        const cells = chartGroup.selectAll('.matrix-cell')
+            .data(data.matrixData)
+            .enter().append('rect')
+            .attr('class', 'matrix-cell')
+            .attr('x', d => d.categoryIndex * cellWidth)
+            .attr('y', d => d.tagIndex * cellHeight)
+            .attr('width', cellWidth - 1)
+            .attr('height', cellHeight - 1)
+            .attr('fill', d => d.count > 0 ? colorScale(d.count) : '#f8f9fa')
+            .attr('stroke', '#fff')
             .attr('stroke-width', 1)
-            .style('cursor', 'pointer');
+            .style('cursor', 'pointer')
+            .on('mouseover', (event, d) => {
+                this.tooltip.style('opacity', .9)
+                    .html(`
+                        <strong>${d.tag}</strong> × <strong>${d.category}</strong><br/>
+                        Usage Count: ${d.count}<br/>
+                        ${d.count === 0 ? '<em>No usage in this category</em>' : `${((d.count / data.stats.maxCount) * 100).toFixed(1)}% of max usage`}
+                    `)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+            })
+            .on('mouseout', () => {
+                this.tooltip.style('opacity', 0);
+            });
 
-        // Add labels
-        svg.append('text')
-            .attr('x', width / 2 + 30)
-            .attr('y', height + 35)
-            .style('text-anchor', 'middle')
+        // Add category labels (X-axis)
+        chartGroup.selectAll('.category-label')
+            .data(data.categories)
+            .enter().append('text')
+            .attr('class', 'category-label')
+            .attr('x', (d, i) => i * cellWidth + cellWidth / 2)
+            .attr('y', -10)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '12px')
+            .style('font-weight', 'bold')
+            .style('fill', '#495057')
+            .text(d => d.length > 15 ? d.substring(0, 15) + '...' : d)
+            .attr('transform', (d, i) => `rotate(-45, ${i * cellWidth + cellWidth / 2}, -10)`);
+
+        // Add tag labels (Y-axis)
+        chartGroup.selectAll('.tag-label')
+            .data(data.tags)
+            .enter().append('text')
+            .attr('class', 'tag-label')
+            .attr('x', -10)
+            .attr('y', (d, i) => i * cellHeight + cellHeight / 2)
+            .attr('text-anchor', 'end')
+            .attr('alignment-baseline', 'middle')
             .style('font-size', '11px')
-            .text('Tag Frequency');
+            .style('fill', '#495057')
+            .text(d => d.length > 20 ? d.substring(0, 20) + '...' : d);
 
+        // Add title
         svg.append('text')
-            .attr('transform', 'rotate(-90)')
-            .attr('y', 15)
-            .attr('x', -height / 2)
-            .style('text-anchor', 'middle')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', 25)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '18px')
+            .style('font-weight', 'bold')
+            .style('fill', '#333')
+            .text('📊 Tag-Category Relationship Matrix');
+
+        // Add subtitle
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', 45)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '12px')
+            .style('fill', '#666')
+            .text('How often tags appear in each video category');
+
+        // Create legend
+        const legendWidth = 200;
+        const legendHeight = 15;
+        const legend = svg.append('g')
+            .attr('transform', `translate(${width + margin.left - legendWidth}, ${margin.top + height + 60})`);
+
+        const legendScale = d3.scaleLinear()
+            .domain([0, data.stats.maxCount])
+            .range([0, legendWidth]);
+
+        const legendAxis = d3.axisBottom(legendScale)
+            .ticks(5)
+            .tickFormat(d => Math.round(d));
+
+        // Create gradient for legend
+        const gradient = svg.append('defs')
+            .append('linearGradient')
+            .attr('id', 'matrix-legend-gradient');
+
+        gradient.selectAll('stop')
+            .data(d3.range(0, 1.01, 0.1))
+            .enter().append('stop')
+            .attr('offset', d => `${d * 100}%`)
+            .attr('stop-color', d => colorScale(d * data.stats.maxCount));
+
+        legend.append('rect')
+            .attr('width', legendWidth)
+            .attr('height', legendHeight)
+            .attr('fill', 'url(#matrix-legend-gradient)')
+            .attr('stroke', '#333')
+            .attr('stroke-width', 1);
+
+        legend.append('g')
+            .attr('transform', `translate(0, ${legendHeight})`)
+            .call(legendAxis);
+
+        legend.append('text')
+            .attr('x', legendWidth / 2)
+            .attr('y', -5)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '12px')
+            .style('font-weight', 'bold')
+            .text('Usage Count');
+
+        // Add stats
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', height + margin.top + margin.bottom - 10)
+            .attr('text-anchor', 'middle')
             .style('font-size', '11px')
-            .text('Engagement Rate');
-    }
-
-    // Helper: Create Tag Category Panel
-    createTagCategoryPanel(parent, tagsByCategory) {
-        const panel = parent.append('div')
-            .style('background', 'white')
-            .style('border', '1px solid #dee2e6')
-            .style('border-radius', '8px')
-            .style('padding', '15px')
-            .style('overflow', 'auto');
-
-        panel.append('h4')
-            .style('margin', '0 0 15px 0')
-            .style('color', '#495057')
-            .style('font-size', '16px')
-            .text('📂 Tags by Category');
-
-        const categories = Object.entries(tagsByCategory).slice(0, 6); // Top 6 categories
-
-        categories.forEach(([category, tags]) => {
-            const categoryDiv = panel.append('div')
-                .style('margin-bottom', '15px');
-
-            categoryDiv.append('div')
-                .style('font-weight', 'bold')
-                .style('color', '#343a40')
-                .style('font-size', '13px')
-                .style('margin-bottom', '5px')
-                .text(category);
-
-            const tagDiv = categoryDiv.append('div')
-                .style('display', 'flex')
-                .style('flex-wrap', 'wrap')
-                .style('gap', '4px');
-
-            tagDiv.selectAll('.category-tag')
-                .data(tags.slice(0, 5))
-                .enter().append('span')
-                .attr('class', 'category-tag')
-                .style('background', '#e9ecef')
-                .style('color', '#495057')
-                .style('padding', '2px 8px')
-                .style('border-radius', '12px')
-                .style('font-size', '11px')
-                .text(d => `${d.tag} (${d.count})`);
-        });
-    }
-
-    // Helper: Create Tag Country Panel
-    createTagCountryPanel(parent, tagsByCountry) {
-        const panel = parent.append('div')
-            .style('background', 'white')
-            .style('border', '1px solid #dee2e6')
-            .style('border-radius', '8px')
-            .style('padding', '15px')
-            .style('overflow', 'auto');
-
-        panel.append('h4')
-            .style('margin', '0 0 15px 0')
-            .style('color', '#495057')
-            .style('font-size', '16px')
-            .text('🌎 Tags by Country');
-
-        const countries = Object.entries(tagsByCountry).slice(0, 5); // Top 5 countries
-        const countryNames = {
-            'US': 'United States', 'CA': 'Canada', 'GB': 'United Kingdom',
-            'DE': 'Germany', 'FR': 'France', 'IN': 'India', 'JP': 'Japan',
-            'KR': 'South Korea', 'MX': 'Mexico', 'RU': 'Russia'
-        };
-
-        countries.forEach(([country, tags]) => {
-            const countryDiv = panel.append('div')
-                .style('margin-bottom', '15px');
-
-            countryDiv.append('div')
-                .style('font-weight', 'bold')
-                .style('color', '#343a40')
-                .style('font-size', '13px')
-                .style('margin-bottom', '5px')
-                .text(countryNames[country] || country);
-
-            const tagDiv = countryDiv.append('div')
-                .style('display', 'flex')
-                .style('flex-wrap', 'wrap')
-                .style('gap', '4px');
-
-            tagDiv.selectAll('.country-tag')
-                .data(tags.slice(0, 6))
-                .enter().append('span')
-                .attr('class', 'country-tag')
-                .style('background', '#d4edda')
-                .style('color', '#155724')
-                .style('padding', '2px 8px')
-                .style('border-radius', '12px')
-                .style('font-size', '11px')
-                .text(d => `${d.tag} (${d.count})`);
-        });
+            .style('fill', '#999')
+            .text(`📈 ${data.stats.totalTags} tags × ${data.stats.totalCategories} categories • ${data.stats.filledCells}/${data.stats.totalCells} filled cells • Avg: ${data.stats.avgCount?.toFixed(1) || 0} uses`);
     }
 
 }

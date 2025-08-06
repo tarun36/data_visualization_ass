@@ -36,7 +36,7 @@
             <button class="nav-btn" data-viz="treemap">Channel Treemap</button>
             <button class="nav-btn" data-viz="engagement">Engagement Breakdown</button>
             <button class="nav-btn" data-viz="sankey">Publishing Timing</button>
-            <button class="nav-btn" data-viz="radar">Tag Dashboard</button>
+            <button class="nav-btn" data-viz="radar">Tag Matrix</button>
 
         </nav>
 
@@ -159,19 +159,18 @@
             </div>
 
             <div id="radar" class="visualization">
-                <h2>🏷️ Tag Performance Dashboard</h2>
+                <h2>📊 Tag Relationship Matrix</h2>
                 <div class="filter-controls">
                     <div class="control-group">
-                        <label for="tag-view-filter">Dashboard View:</label>
+                        <label for="tag-view-filter">Matrix View:</label>
                         <select id="tag-view-filter">
-                            <option value="overview" selected>Full Overview</option>
-                            <option value="global">Global Tags Only</option>
-                            <option value="categories">By Categories</option>
-                            <option value="countries">By Countries</option>
+                            <option value="overview" selected>All Categories</option>
+                            <option value="top-tags">Top Tags Only</option>
+                            <option value="detailed">Detailed View</option>
                         </select>
                     </div>
                     <div class="control-group">
-                        <label style="color: #7f8c8d; font-size: 12px;">Comprehensive analysis of tag usage, performance and trends</label>
+                        <label style="color: #7f8c8d; font-size: 12px;">See how tags relate to video categories • Excludes "none" tags</label>
                     </div>
                 </div>
                 <div class="chart-container" style="min-height: 500px;"></div>

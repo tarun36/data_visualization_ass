@@ -927,122 +927,104 @@ class DataLoader {
         }
     }
 
-    // Get tag performance data for dashboard
-    getTagPerformanceData(filterType = 'all') {
+    // Get tag relationship matrix data
+    getTagRelationshipMatrix(filterType = 'all') {
         try {
-            const tagData = {};
-            const categoryTagData = {};
-            const countryTagData = {};
+            const tagCategoryMatrix = {};
+            const categories = new Set();
+            const tags = new Set();
             
-            // Process all videos to extract tag data
-            Object.entries(this.videoData).forEach(([country, videos]) => {
-                videos.forEach(video => {
-                    if (video && video.tags) {
-                        // Parse tags - split by | and clean quotes
-                        const tags = video.tags.split('|')
-                            .map(tag => tag.replace(/"/g, '').trim())
-                            .filter(tag => tag.length > 2 && tag.length < 30)
-                            .slice(0, 10); // Limit to first 10 tags per video
+            // Process all videos to build tag-category matrix
+            Object.values(this.videoData).flat().forEach(video => {
+                if (video && video.tags && video.category_name) {
+                    const category = video.category_name;
+                    categories.add(category);
+                    
+                    // Parse tags - split by | and clean quotes, filter out "none"
+                    const videoTags = video.tags.split('|')
+                        .map(tag => tag.replace(/"/g, '').trim().toLowerCase())
+                        .filter(tag => 
+                            tag.length > 2 && 
+                            tag.length < 30 && 
+                            tag !== 'none' && 
+                            !tag.includes('none')
+                        )
+                        .slice(0, 8); // Limit to first 8 tags per video
 
-                        tags.forEach(tag => {
-                            // Global tag data
-                            if (!tagData[tag]) {
-                                tagData[tag] = {
-                                    count: 0,
-                                    totalViews: 0,
-                                    totalLikes: 0,
-                                    totalComments: 0,
-                                    categories: new Set(),
-                                    countries: new Set()
-                                };
-                            }
-                            
-                            tagData[tag].count++;
-                            tagData[tag].totalViews += video.views || 0;
-                            tagData[tag].totalLikes += video.likes || 0;
-                            tagData[tag].totalComments += video.comment_count || 0;
-                            tagData[tag].categories.add(video.category_name);
-                            tagData[tag].countries.add(country);
+                    videoTags.forEach(tag => {
+                        tags.add(tag);
+                        
+                        if (!tagCategoryMatrix[tag]) {
+                            tagCategoryMatrix[tag] = {};
+                        }
+                        if (!tagCategoryMatrix[tag][category]) {
+                            tagCategoryMatrix[tag][category] = 0;
+                        }
+                        tagCategoryMatrix[tag][category]++;
+                    });
+                }
+            });
 
-                            // Category-specific tag data
-                            const category = video.category_name;
-                            if (!categoryTagData[category]) {
-                                categoryTagData[category] = {};
-                            }
-                            if (!categoryTagData[category][tag]) {
-                                categoryTagData[category][tag] = 0;
-                            }
-                            categoryTagData[category][tag]++;
+            // Convert to arrays and filter for significant tags
+            const significantTags = Object.entries(tagCategoryMatrix)
+                .filter(([tag, categoryData]) => {
+                    const totalCount = Object.values(categoryData).reduce((sum, count) => sum + count, 0);
+                    return totalCount >= 3; // Minimum 3 occurrences across all categories
+                })
+                .sort((a, b) => {
+                    const aTotal = Object.values(a[1]).reduce((sum, count) => sum + count, 0);
+                    const bTotal = Object.values(b[1]).reduce((sum, count) => sum + count, 0);
+                    return bTotal - aTotal;
+                })
+                .slice(0, 25) // Top 25 tags for matrix readability
+                .map(([tag, categoryData]) => tag);
 
-                            // Country-specific tag data
-                            if (!countryTagData[country]) {
-                                countryTagData[country] = {};
-                            }
-                            if (!countryTagData[country][tag]) {
-                                countryTagData[country][tag] = 0;
-                            }
-                            countryTagData[country][tag]++;
-                        });
-                    }
+            const sortedCategories = Array.from(categories).sort();
+
+            // Build matrix data structure
+            const matrixData = [];
+            significantTags.forEach((tag, tagIndex) => {
+                sortedCategories.forEach((category, categoryIndex) => {
+                    const count = tagCategoryMatrix[tag] && tagCategoryMatrix[tag][category] ? 
+                        tagCategoryMatrix[tag][category] : 0;
+                    
+                    matrixData.push({
+                        tag,
+                        category,
+                        count,
+                        tagIndex,
+                        categoryIndex
+                    });
                 });
             });
 
-            // Convert to arrays and calculate metrics
-            const topTags = Object.entries(tagData)
-                .filter(([tag, data]) => data.count >= 3) // Minimum 3 occurrences
-                .map(([tag, data]) => ({
-                    tag,
-                    count: data.count,
-                    avgViews: data.totalViews / data.count,
-                    avgLikes: data.totalLikes / data.count,
-                    avgComments: data.totalComments / data.count,
-                    engagement: ((data.totalLikes + data.totalComments) / data.totalViews) || 0,
-                    categoryCount: data.categories.size,
-                    countryCount: data.countries.size,
-                    categories: Array.from(data.categories),
-                    countries: Array.from(data.countries)
-                }))
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 50); // Top 50 tags
-
-            // Get top tags by category
-            const topTagsByCategory = {};
-            Object.entries(categoryTagData).forEach(([category, tags]) => {
-                topTagsByCategory[category] = Object.entries(tags)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 10) // Top 10 per category
-                    .map(([tag, count]) => ({ tag, count }));
-            });
-
-            // Get top tags by country  
-            const topTagsByCountry = {};
-            Object.entries(countryTagData).forEach(([country, tags]) => {
-                topTagsByCountry[country] = Object.entries(tags)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 15) // Top 15 per country
-                    .map(([tag, count]) => ({ tag, count }));
-            });
+            // Calculate statistics
+            const allCounts = matrixData.map(d => d.count).filter(c => c > 0);
+            const maxCount = Math.max(...allCounts);
+            const minCount = Math.min(...allCounts);
+            const avgCount = allCounts.reduce((sum, c) => sum + c, 0) / allCounts.length;
 
             return {
-                globalTags: topTags,
-                tagsByCategory: topTagsByCategory,
-                tagsByCountry: topTagsByCountry,
+                matrixData,
+                tags: significantTags,
+                categories: sortedCategories,
                 stats: {
-                    totalUniqueTags: Object.keys(tagData).length,
-                    topTagsShown: topTags.length,
-                    avgTagsPerVideo: Object.values(this.videoData).flat()
-                        .filter(v => v && v.tags)
-                        .reduce((sum, v) => sum + v.tags.split('|').length, 0) / 
-                        Object.values(this.videoData).flat().filter(v => v && v.tags).length
+                    totalTags: significantTags.length,
+                    totalCategories: sortedCategories.length,
+                    maxCount,
+                    minCount,
+                    avgCount,
+                    totalCells: matrixData.length,
+                    filledCells: allCounts.length
                 }
             };
 
         } catch (error) {
-            console.error('Error processing tag performance data:', error);
+            console.error('Error processing tag relationship matrix data:', error);
             return { 
-                globalTags: [], 
-                tagsByCategory: {}, 
-                tagsByCountry: {},
+                matrixData: [],
+                tags: [],
+                categories: [],
                 stats: {}
             };
         }

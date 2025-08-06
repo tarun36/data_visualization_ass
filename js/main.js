@@ -204,7 +204,7 @@ class YouTubeDataVisualization {
                     break;
 
                 case 'radar':
-                    this.renderTagPerformanceDashboard(container);
+                    this.renderTagRelationshipMatrix(container);
                     break;
 
                 default:
@@ -631,19 +631,19 @@ class YouTubeDataVisualization {
         }
     }
 
-    // Render Tag Performance Dashboard
-    renderTagPerformanceDashboard(container) {
+    // Render Tag Relationship Matrix
+    renderTagRelationshipMatrix(container) {
         try {
             // Get current filter values
             const viewFilter = document.getElementById('tag-view-filter')?.value || 'overview';
             
-            // Get tag performance data
-            const tagData = this.dataLoader.getTagPerformanceData(viewFilter);
+            // Get tag relationship matrix data
+            const tagData = this.dataLoader.getTagRelationshipMatrix(viewFilter);
             
-            this.visualizations.createTagPerformanceDashboard(tagData, container);
+            this.visualizations.createTagRelationshipMatrix(tagData, container);
         } catch (error) {
-            console.error('Error rendering Tag Performance Dashboard:', error);
-            this.showVisualizationError(container, `Error rendering Tag Performance Dashboard: ${error.message}`);
+            console.error('Error rendering Tag Relationship Matrix:', error);
+            this.showVisualizationError(container, `Error rendering Tag Relationship Matrix: ${error.message}`);
         }
     }
 
@@ -661,7 +661,7 @@ class YouTubeDataVisualization {
             viewFilter.addEventListener('change', () => {
                 const container = document.querySelector('#radar .chart-container');
                 if (container) {
-                    this.renderTagPerformanceDashboard(container);
+                    this.renderTagRelationshipMatrix(container);
                 }
             });
         }
