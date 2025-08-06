@@ -8,6 +8,16 @@
     <link rel="stylesheet" href="css/main.css">
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+    <script>
+        // Verify d3-sankey is loaded
+        window.addEventListener('DOMContentLoaded', function() {
+            if (typeof d3.sankey !== 'function') {
+                console.error('d3-sankey library failed to load. Sankey charts will not work.');
+            } else {
+                console.log('d3-sankey library loaded successfully');
+            }
+        });
+    </script>
 </head>
 <body>
     <div class="container">

@@ -886,6 +886,39 @@ class Visualizations {
     createSankeyDiagram(data, container) {
         this.clearVisualization(container);
         
+        // Check if d3.sankey is available
+        if (typeof d3.sankey !== 'function') {
+            const svg = d3.select(container)
+                .append('svg')
+                .attr('width', 400)
+                .attr('height', 300);
+            
+            svg.append('text')
+                .attr('x', 200)
+                .attr('y', 150)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '16px')
+                .style('fill', 'red')
+                .text('d3-sankey library not loaded. Please check the script import.');
+            return;
+        }
+        
+        // Validate input data
+        if (!data || !data.nodes || !data.links || data.nodes.length === 0) {
+            const svg = d3.select(container)
+                .append('svg')
+                .attr('width', 400)
+                .attr('height', 300);
+            
+            svg.append('text')
+                .attr('x', 200)
+                .attr('y', 150)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '16px')
+                .text('No data available for Sankey diagram');
+            return;
+        }
+        
         const containerRect = container.getBoundingClientRect();
         const width = containerRect.width;
         const height = containerRect.height;
@@ -901,35 +934,45 @@ class Visualizations {
             .nodePadding(10)
             .extent([[1, 1], [width - 1, height - 5]]);
 
-        // Process data for Sankey
+        // Process data for Sankey - create deep copies to avoid mutation
         const sankeyData = {
-            nodes: data.nodes.map(d => ({ id: d.id, name: d.name, type: d.type })),
-            links: data.links.map(d => ({ source: d.source, target: d.target, value: d.value }))
+            nodes: data.nodes.map(d => ({ 
+                id: d.id, 
+                name: d.name, 
+                type: d.type 
+            })),
+            links: data.links.map(d => ({ 
+                source: d.source, 
+                target: d.target, 
+                value: d.value 
+            }))
         };
 
         // Create a map of node IDs to node objects for proper linking
         const nodeMap = new Map();
-        sankeyData.nodes.forEach(node => {
+        sankeyData.nodes.forEach((node, index) => {
+            node.index = index; // Ensure each node has an index
             nodeMap.set(node.id, node);
         });
 
         // Update links to reference actual node objects instead of strings
+        const validLinks = [];
         sankeyData.links.forEach(link => {
             const sourceNode = nodeMap.get(link.source);
             const targetNode = nodeMap.get(link.target);
             
-            if (sourceNode && targetNode) {
-                link.source = sourceNode;
-                link.target = targetNode;
+            if (sourceNode && targetNode && link.value > 0) {
+                validLinks.push({
+                    source: sourceNode,
+                    target: targetNode,
+                    value: link.value
+                });
             } else {
-                console.warn(`Skipping link: source or target node not found`, link);
+                console.warn(`Skipping invalid link:`, link);
             }
         });
 
-        // Filter out invalid links
-        sankeyData.links = sankeyData.links.filter(link => 
-            link.source && link.target && typeof link.source === 'object' && typeof link.target === 'object'
-        );
+        sankeyData.links = validLinks;
 
         if (sankeyData.links.length === 0) {
             svg.append('text')
@@ -941,114 +984,127 @@ class Visualizations {
             return;
         }
 
-        const { nodes, links } = sankey(sankeyData);
+        try {
+            const { nodes, links } = sankey(sankeyData);
 
-        // Create gradient definitions
-        const defs = svg.append('defs');
-        
-        // Create gradients for links
-        links.forEach((link, i) => {
-            const gradient = defs.append('linearGradient')
-                .attr('id', `link-${i}`)
-                .attr('gradientUnits', 'userSpaceOnUse')
-                .attr('x1', link.source.x1)
-                .attr('x2', link.target.x0);
-
-            gradient.append('stop')
-                .attr('offset', '0%')
-                .attr('stop-color', this.colorScale(link.source.index))
-                .attr('stop-opacity', 0.6);
-
-            gradient.append('stop')
-                .attr('offset', '100%')
-                .attr('stop-color', this.colorScale(link.target.index))
-                .attr('stop-opacity', 0.6);
-        });
-
-        // Draw links
-        svg.append('g')
-            .selectAll('path')
-            .data(links)
-            .enter().append('path')
-            .attr('d', d3.sankeyLinkHorizontal())
-            .attr('stroke', (d, i) => `url(#link-${i})`)
-            .attr('stroke-width', d => Math.max(1, d.width))
-            .attr('fill', 'none')
-            .attr('opacity', 0.7)
-            .on('mouseover', (event, d) => {
-                this.tooltip.transition().duration(200).style('opacity', 0.9);
-                this.tooltip.html(`
-                    <strong>${d.source.name} → ${d.target.name}</strong><br/>
-                    Videos: ${d.value.toLocaleString()}<br/>
-                    Percentage: ${((d.value / d.source.value1) * 100).toFixed(1)}% of ${d.source.name}
-                `)
-                .style('left', (event.pageX + 10) + 'px')
-                .style('top', (event.pageY - 28) + 'px');
-            })
-            .on('mouseout', () => {
-                this.tooltip.transition().duration(500).style('opacity', 0);
-            });
-
-        // Draw nodes
-        const node = svg.append('g')
-            .selectAll('g')
-            .data(nodes)
-            .enter().append('g')
-            .attr('class', 'node')
-            .attr('transform', d => `translate(${d.x0},${d.y0})`);
-
-        node.append('rect')
-            .attr('height', d => d.y1 - d.y0)
-            .attr('width', d => d.x1 - d.x0)
-            .attr('fill', (d, i) => this.colorScale(i))
-            .attr('stroke', '#000')
-            .on('mouseover', (event, d) => {
-                this.tooltip.transition().duration(200).style('opacity', 0.9);
-                this.tooltip.html(`
-                    <strong>${d.name}</strong><br/>
-                    Type: ${d.type === 'country' ? 'Country' : 'Category'}<br/>
-                    Total Videos: ${d.value1.toLocaleString()}<br/>
-                    ${d.type === 'country' ? 'Distributed across categories' : 'Videos from all countries'}
-                `)
-                .style('left', (event.pageX + 10) + 'px')
-                .style('top', (event.pageY - 28) + 'px');
-            })
-            .on('mouseout', () => {
-                this.tooltip.transition().duration(500).style('opacity', 0);
-            });
-
-        // Add node labels
-        node.append('text')
-            .attr('x', d => d.x0 < width / 2 ? 6 : -6)
-            .attr('y', d => (d.y1 + d.y0) / 2)
-            .attr('dy', '0.35em')
-            .attr('text-anchor', d => d.x0 < width / 2 ? 'start' : 'end')
-            .style('font-size', '12px')
-            .style('font-weight', 'bold')
-            .text(d => d.name);
-
-        // Add title and subtitle
-        svg.append('text')
-            .attr('x', width / 2)
-            .attr('y', 20)
-            .attr('text-anchor', 'middle')
-            .style('font-size', '18px')
-            .style('font-weight', 'bold')
-            .style('fill', '#2c3e50')
-            .text('Video Category Distribution by Country');
+            // Create gradient definitions
+            const defs = svg.append('defs');
             
-        svg.append('text')
-            .attr('x', width / 2)
-            .attr('y', 40)
-            .attr('text-anchor', 'middle')
-            .style('font-size', '12px')
-            .style('fill', '#7f8c8d')
-            .text('Shows how videos from each country are distributed across different categories');
+            // Create gradients for links
+            links.forEach((link, i) => {
+                const gradient = defs.append('linearGradient')
+                    .attr('id', `link-${i}`)
+                    .attr('gradientUnits', 'userSpaceOnUse')
+                    .attr('x1', link.source.x1)
+                    .attr('x2', link.target.x0);
+
+                gradient.append('stop')
+                    .attr('offset', '0%')
+                    .attr('stop-color', this.colorScale(link.source.index || 0))
+                    .attr('stop-opacity', 0.6);
+
+                gradient.append('stop')
+                    .attr('offset', '100%')
+                    .attr('stop-color', this.colorScale(link.target.index || 0))
+                    .attr('stop-opacity', 0.6);
+            });
+
+            // Draw links
+            svg.append('g')
+                .selectAll('path')
+                .data(links)
+                .enter().append('path')
+                .attr('d', d3.sankeyLinkHorizontal())
+                .attr('stroke', (d, i) => `url(#link-${i})`)
+                .attr('stroke-width', d => Math.max(1, d.width))
+                .attr('fill', 'none')
+                .attr('opacity', 0.7)
+                .on('mouseover', (event, d) => {
+                    this.tooltip.transition().duration(200).style('opacity', 0.9);
+                    const percentage = d.source.value ? ((d.value / d.source.value) * 100).toFixed(1) : '0.0';
+                    this.tooltip.html(`
+                        <strong>${d.source.name} → ${d.target.name}</strong><br/>
+                        Videos: ${d.value.toLocaleString()}<br/>
+                        Percentage: ${percentage}% of ${d.source.name}
+                    `)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+                })
+                .on('mouseout', () => {
+                    this.tooltip.transition().duration(500).style('opacity', 0);
+                });
+
+            // Draw nodes
+            const node = svg.append('g')
+                .selectAll('g')
+                .data(nodes)
+                .enter().append('g')
+                .attr('class', 'node')
+                .attr('transform', d => `translate(${d.x0},${d.y0})`);
+
+            node.append('rect')
+                .attr('height', d => d.y1 - d.y0)
+                .attr('width', sankey.nodeWidth())
+                .attr('fill', d => this.colorScale(d.index || 0))
+                .attr('stroke', '#000')
+                .attr('stroke-width', 0.5)
+                .on('mouseover', (event, d) => {
+                    this.tooltip.transition().duration(200).style('opacity', 0.9);
+                    this.tooltip.html(`
+                        <strong>${d.name}</strong><br/>
+                        Type: ${d.type}<br/>
+                        Total: ${d.value ? d.value.toLocaleString() : 'N/A'}
+                    `)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+                })
+                .on('mouseout', () => {
+                    this.tooltip.transition().duration(500).style('opacity', 0);
+                });
+
+            // Add node labels
+            node.append('text')
+                .attr('x', -6)
+                .attr('y', d => (d.y1 - d.y0) / 2)
+                .attr('dy', '0.35em')
+                .attr('text-anchor', 'end')
+                .style('font-size', '12px')
+                .style('font-weight', 'bold')
+                .text(d => d.name)
+                .filter(d => d.x0 < width / 2)
+                .attr('x', sankey.nodeWidth() + 6)
+                .attr('text-anchor', 'start');
+
+        } catch (error) {
+            console.error('Error creating Sankey diagram:', error);
+            svg.append('text')
+                .attr('text-anchor', 'middle')
+                .attr('x', width / 2)
+                .attr('y', height / 2)
+                .style('font-size', '16px')
+                .style('fill', 'red')
+                .text('Error creating Sankey diagram. Check console for details.');
+        }
     }
 
     // 8. Radar Chart - Country Performance Comparison
     createRadarChart(data, container) {
         this.clearVisualization(container);
+        
+        if (!data || data.length === 0) {
+            const svg = d3.select(container)
+                .append('svg')
+                .attr('width', 400)
+                .attr('height', 300);
+            
+            svg.append('text')
+                .attr('x', 200)
+                .attr('y', 150)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '16px')
+                .text('No data available for radar chart');
+            return;
+        }
         
         const containerRect = container.getBoundingClientRect();
         const width = containerRect.width;
@@ -1073,19 +1129,41 @@ class Visualizations {
         const g = svg.append('g')
             .attr('transform', `translate(${width / 2},${height / 2})`);
 
-        // Use only the most important metrics for clarity
-        const metrics = ['avgViews', 'avgLikes', 'engagementRate'];
-        const metricLabels = {
+        // Determine metrics based on what's available in the data
+        const availableMetrics = [];
+        const sampleData = data[0];
+        
+        // Check which metrics are available in the data
+        const possibleMetrics = {
             'avgViews': 'Average Views',
-            'avgLikes': 'Average Likes', 
-            'engagementRate': 'Engagement Rate'
+            'avgLikes': 'Average Likes',
+            'avgComments': 'Average Comments',
+            'engagementRate': 'Engagement Rate',
+            'avgDislikes': 'Average Dislikes',
+            'totalVideos': 'Total Videos',
+            'categoryDiversity': 'Category Diversity'
         };
+        
+        Object.keys(possibleMetrics).forEach(metric => {
+            if (sampleData && sampleData[metric] !== undefined) {
+                availableMetrics.push(metric);
+            }
+        });
+        
+        // Fallback to basic metrics if none found
+        if (availableMetrics.length === 0) {
+            availableMetrics.push('avgViews', 'avgLikes', 'engagementRate');
+        }
+        
+        // Limit to 6 metrics for clarity
+        const metrics = availableMetrics.slice(0, 6);
+        const metricLabels = possibleMetrics;
 
         if (metrics.length === 0) {
             g.append('text')
                 .attr('text-anchor', 'middle')
                 .style('font-size', '16px')
-                .text('No data available for radar chart');
+                .text('No valid metrics found for radar chart');
             return;
         }
 
@@ -1097,10 +1175,17 @@ class Visualizations {
         // Create radius scale for each metric
         const radiusScales = {};
         metrics.forEach(metric => {
-            const values = data.map(d => d[metric]).filter(v => v !== undefined);
+            const values = data.map(d => d[metric]).filter(v => v !== undefined && v !== null && !isNaN(v));
             if (values.length > 0) {
+                const maxValue = d3.max(values);
+                const minValue = d3.min(values);
                 radiusScales[metric] = d3.scaleLinear()
-                    .domain([0, d3.max(values)])
+                    .domain([Math.min(0, minValue), maxValue])
+                    .range([0, radius]);
+            } else {
+                // Fallback scale
+                radiusScales[metric] = d3.scaleLinear()
+                    .domain([0, 1])
                     .range([0, radius]);
             }
         });
@@ -1130,7 +1215,7 @@ class Visualizations {
                 .attr('stroke-width', 1);
 
             // Add metric labels
-            const labelRadius = radius + 20;
+            const labelRadius = radius + 30;
             const labelX = Math.cos(angle) * labelRadius;
             const labelY = Math.sin(angle) * labelRadius;
             
@@ -1139,7 +1224,7 @@ class Visualizations {
                 .attr('y', labelY)
                 .attr('text-anchor', 'middle')
                 .attr('dominant-baseline', 'middle')
-                .style('font-size', '12px')
+                .style('font-size', '11px')
                 .style('font-weight', 'bold')
                 .text(metricLabels[metric] || metric);
         });
@@ -1156,51 +1241,54 @@ class Visualizations {
                 return [Math.cos(angle) * r, Math.sin(angle) * r];
             });
 
-            // Create polygon
-            const polygon = g.append('polygon')
-                .attr('points', points.map(p => p.join(',')).join(' '))
-                .attr('fill', this.colorScale(i))
-                .attr('fill-opacity', 0.3)
-                .attr('stroke', this.colorScale(i))
-                .attr('stroke-width', 2)
-                .on('mouseover', (event, d) => {
-                    this.tooltip.transition().duration(200).style('opacity', 0.9);
-                    let tooltipContent = `<strong>${countryData.country}</strong><br/>`;
-                    metrics.forEach(metric => {
-                        const value = countryData[metric] || 0;
-                        let formattedValue;
-                        if (metric === 'avgViews') {
-                            formattedValue = d3.format('.0s')(value) + ' views';
-                        } else if (metric === 'avgLikes') {
-                            formattedValue = d3.format('.0s')(value) + ' likes';
-                        } else if (metric === 'engagementRate') {
-                            formattedValue = d3.format('.1f')(value) + '%';
-                        } else {
-                            formattedValue = d3.format('.2f')(value);
-                        }
-                        tooltipContent += `${metricLabels[metric]}: ${formattedValue}<br/>`;
+            // Only draw if we have valid points
+            if (points.length > 0) {
+                // Create polygon
+                const polygon = g.append('polygon')
+                    .attr('points', points.map(p => p.join(',')).join(' '))
+                    .attr('fill', this.colorScale(i))
+                    .attr('fill-opacity', 0.3)
+                    .attr('stroke', this.colorScale(i))
+                    .attr('stroke-width', 2)
+                    .on('mouseover', (event, d) => {
+                        this.tooltip.transition().duration(200).style('opacity', 0.9);
+                        let tooltipContent = `<strong>${countryData.country}</strong><br/>`;
+                        metrics.forEach(metric => {
+                            const value = countryData[metric] || 0;
+                            let formattedValue;
+                            if (metric.includes('Views') || metric.includes('views')) {
+                                formattedValue = d3.format('.0s')(value) + ' views';
+                            } else if (metric.includes('Likes') || metric.includes('likes') || metric.includes('Comments')) {
+                                formattedValue = d3.format('.0s')(value);
+                            } else if (metric.includes('Rate') || metric.includes('rate')) {
+                                formattedValue = d3.format('.1f')(value) + '%';
+                            } else {
+                                formattedValue = d3.format('.2f')(value);
+                            }
+                            tooltipContent += `${metricLabels[metric] || metric}: ${formattedValue}<br/>`;
+                        });
+                        this.tooltip.html(tooltipContent)
+                            .style('left', (event.pageX + 10) + 'px')
+                            .style('top', (event.pageY - 28) + 'px');
+                    })
+                    .on('mouseout', () => {
+                        this.tooltip.transition().duration(500).style('opacity', 0);
                     });
-                    this.tooltip.html(tooltipContent)
-                        .style('left', (event.pageX + 10) + 'px')
-                        .style('top', (event.pageY - 28) + 'px');
-                })
-                .on('mouseout', () => {
-                    this.tooltip.transition().duration(500).style('opacity', 0);
-                });
 
-            // Add country label
-            const centerX = points.reduce((sum, p) => sum + p[0], 0) / points.length;
-            const centerY = points.reduce((sum, p) => sum + p[1], 0) / points.length;
-            
-            g.append('text')
-                .attr('x', centerX)
-                .attr('y', centerY)
-                .attr('text-anchor', 'middle')
-                .attr('dominant-baseline', 'middle')
-                .style('font-size', '14px')
-                .style('font-weight', 'bold')
-                .style('fill', this.colorScale(i))
-                .text(countryData.country);
+                // Add country label at polygon center
+                const centerX = points.reduce((sum, p) => sum + p[0], 0) / points.length;
+                const centerY = points.reduce((sum, p) => sum + p[1], 0) / points.length;
+                
+                g.append('text')
+                    .attr('x', centerX)
+                    .attr('y', centerY)
+                    .attr('text-anchor', 'middle')
+                    .attr('dominant-baseline', 'middle')
+                    .style('font-size', '12px')
+                    .style('font-weight', 'bold')
+                    .style('fill', this.colorScale(i))
+                    .text(countryData.country);
+            }
         });
 
         // Add legend
