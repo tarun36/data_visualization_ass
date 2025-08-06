@@ -1983,21 +1983,49 @@ class Visualizations {
             .attr('transform', (d, i) => `translate(0, ${i * 20})`)
             .style('cursor', 'pointer')
             .on('click', function(event, d) {
-                const isActive = d3.select(this).classed('inactive');
-                d3.select(this).classed('inactive', !isActive);
+                const isInactive = d3.select(this).classed('inactive');
+                d3.select(this).classed('inactive', !isInactive);
                 
                 const tagIndex = data.timelineData.indexOf(d);
                 const line = chartGroup.selectAll('.tag-line').filter((lineData, i) => i === tagIndex);
                 const points = line.selectAll('.data-point');
                 
-                if (isActive) {
-                    line.select('path').style('opacity', 0.8);
+                if (isInactive) {
+                    // Reactivate - restore full visibility
+                    line.select('path')
+                        .style('opacity', 0.8)
+                        .style('stroke-width', 2.5);
                     points.style('opacity', 1);
                     d3.select(this).style('opacity', 1);
+                    // Remove any special highlighting
+                    d3.select(this).select('.legend-background').style('fill', 'none');
                 } else {
-                    line.select('path').style('opacity', 0.1);
-                    points.style('opacity', 0.1);
-                    d3.select(this).style('opacity', 0.3);
+                    // Deactivate - dim but don't hide completely
+                    line.select('path')
+                        .style('opacity', 0.15)
+                        .style('stroke-width', 1.5);
+                    points.style('opacity', 0.2);
+                    d3.select(this).style('opacity', 0.4);
+                    // Add background highlight to show it's selected for hiding
+                    d3.select(this).select('.legend-background').style('fill', '#f0f0f0');
+                }
+            })
+            .on('mouseover', function(event, d) {
+                if (!d3.select(this).classed('inactive')) {
+                    const tagIndex = data.timelineData.indexOf(d);
+                    const line = chartGroup.selectAll('.tag-line').filter((lineData, i) => i === tagIndex);
+                    // Temporarily highlight on hover
+                    line.select('path').style('stroke-width', 4);
+                    d3.select(this).select('.legend-background').style('fill', '#e8f4ff');
+                }
+            })
+            .on('mouseout', function(event, d) {
+                if (!d3.select(this).classed('inactive')) {
+                    const tagIndex = data.timelineData.indexOf(d);
+                    const line = chartGroup.selectAll('.tag-line').filter((lineData, i) => i === tagIndex);
+                    // Restore normal thickness
+                    line.select('path').style('stroke-width', 2.5);
+                    d3.select(this).select('.legend-background').style('fill', 'none');
                 }
             });
 
