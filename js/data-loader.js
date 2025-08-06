@@ -899,6 +899,130 @@ class DataLoader {
             return false;
         }
     }
+
+    // Get tag cloud data for burst visualization
+    getTagCloudData(country = 'all') {
+        try {
+            const tagData = {};
+            const videos = country === 'all' ? 
+                Object.values(this.videoData).flat() : 
+                (this.videoData[country] || []);
+
+            videos.forEach(video => {
+                if (video && video.tags) {
+                    // Parse tags - split by | and clean quotes
+                    const tags = video.tags.split('|').map(tag => 
+                        tag.replace(/"/g, '').trim()
+                    ).filter(tag => tag.length > 2); // Filter short tags
+
+                    tags.forEach(tag => {
+                        if (!tagData[tag]) {
+                            tagData[tag] = {
+                                count: 0,
+                                totalViews: 0,
+                                totalLikes: 0,
+                                totalComments: 0,
+                                videos: []
+                            };
+                        }
+                        tagData[tag].count++;
+                        tagData[tag].totalViews += video.views || 0;
+                        tagData[tag].totalLikes += video.likes || 0;
+                        tagData[tag].totalComments += video.comment_count || 0;
+                        tagData[tag].videos.push({
+                            title: video.title,
+                            views: video.views,
+                            country: video.country,
+                            category: video.category_name
+                        });
+                    });
+                }
+            });
+
+            // Convert to array and calculate metrics
+            return Object.entries(tagData)
+                .map(([tag, data]) => ({
+                    tag,
+                    count: data.count,
+                    avgViews: data.totalViews / data.count,
+                    avgLikes: data.totalLikes / data.count,
+                    avgComments: data.totalComments / data.count,
+                    engagement: ((data.totalLikes + data.totalComments) / data.totalViews) || 0,
+                    videos: data.videos
+                }))
+                .filter(item => item.count >= 2) // Only tags appearing 2+ times
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 50); // Top 50 tags
+        } catch (error) {
+            console.error('Error processing tag cloud data:', error);
+            return [];
+        }
+    }
+
+    // Get cultural preference data by country
+    getCulturalPreferenceData() {
+        try {
+            const culturalData = {};
+            
+            // Initialize countries
+            Object.keys(this.videoData).forEach(country => {
+                culturalData[country] = {
+                    country,
+                    name: this.getCountryDisplayName(country),
+                    categories: {},
+                    totalVideos: 0,
+                    totalViews: 0,
+                    totalEngagement: 0
+                };
+            });
+
+            // Process videos by country and category
+            Object.entries(this.videoData).forEach(([country, videos]) => {
+                videos.forEach(video => {
+                    if (video && video.category_name) {
+                        const category = video.category_name;
+                        
+                        if (!culturalData[country].categories[category]) {
+                            culturalData[country].categories[category] = {
+                                count: 0,
+                                totalViews: 0,
+                                totalLikes: 0,
+                                totalDislikes: 0,
+                                totalComments: 0
+                            };
+                        }
+
+                        const cat = culturalData[country].categories[category];
+                        cat.count++;
+                        cat.totalViews += video.views || 0;
+                        cat.totalLikes += video.likes || 0;
+                        cat.totalDislikes += video.dislikes || 0;
+                        cat.totalComments += video.comment_count || 0;
+
+                        culturalData[country].totalVideos++;
+                        culturalData[country].totalViews += video.views || 0;
+                        culturalData[country].totalEngagement += 
+                            (video.likes || 0) + (video.comment_count || 0);
+                    }
+                });
+
+                // Calculate metrics for each category
+                Object.entries(culturalData[country].categories).forEach(([category, data]) => {
+                    data.avgViews = data.totalViews / data.count;
+                    data.popularity = data.count / culturalData[country].totalVideos;
+                    data.engagement = data.totalViews > 0 ? 
+                        ((data.totalLikes + data.totalComments) / data.totalViews) : 0;
+                    data.quality = data.totalDislikes > 0 ? 
+                        (data.totalLikes / (data.totalLikes + data.totalDislikes)) : 1;
+                });
+            });
+
+            return Object.values(culturalData);
+        } catch (error) {
+            console.error('Error processing cultural preference data:', error);
+            return [];
+        }
+    }
 }
 
 // Create global instance
