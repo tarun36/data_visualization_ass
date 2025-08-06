@@ -927,18 +927,18 @@ class DataLoader {
         }
     }
 
-    // Get tag relationship matrix data
-    getTagRelationshipMatrix(filterType = 'all') {
+    // Get tag evolution timeline data
+    getTagEvolutionData(filterType = 'all') {
         try {
-            const tagCategoryMatrix = {};
-            const categories = new Set();
-            const tags = new Set();
+            const tagTimelineData = {};
+            const allDates = new Set();
             
-            // Process all videos to build tag-category matrix
+            // Process all videos to build tag timeline
             Object.values(this.videoData).flat().forEach(video => {
-                if (video && video.tags && video.category_name) {
-                    const category = video.category_name;
-                    categories.add(category);
+                if (video && video.tags && video.trending_date_parsed) {
+                    const trendingDate = video.trending_date_parsed;
+                    const dateKey = trendingDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+                    allDates.add(dateKey);
                     
                     // Parse tags - split by | and clean quotes, filter out "none" and similar
                     const rawTags = video.tags.split('|').map(tag => tag.replace(/"/g, '').trim().toLowerCase());
@@ -955,20 +955,15 @@ class DataLoader {
                         ];
                         
                         // Check if tag exactly matches any none pattern
-                        if (nonePatterns.includes(tag)) {
-                            if (tag === '[none]') {
-                                console.log('Filtered out [none] tag from video:', video.title?.substring(0, 50));
-                            }
-                            return false;
-                        }
+                        if (nonePatterns.includes(tag)) return false;
                         
-                        // Check for bracketed none variations like [none], [n/a], etc.
+                        // Check for bracketed none variations
                         if (tag.startsWith('[') && tag.endsWith(']')) {
-                            const innerTag = tag.slice(1, -1); // Remove brackets
+                            const innerTag = tag.slice(1, -1);
                             if (nonePatterns.includes(innerTag)) return false;
                         }
                         
-                        // Check if tag contains "none" as a word (not part of another word)
+                        // Check if tag contains "none" as a word
                         if (tag.includes('none') && (
                             tag === 'none' || 
                             tag.startsWith('none ') || 
@@ -977,96 +972,103 @@ class DataLoader {
                         )) return false;
                         
                         return true;
-                    }).slice(0, 8); // Limit to first 8 tags per video
+                    }).slice(0, 8);
 
                     videoTags.forEach(tag => {
-                        tags.add(tag);
+                        if (!tagTimelineData[tag]) {
+                            tagTimelineData[tag] = {};
+                        }
+                        if (!tagTimelineData[tag][dateKey]) {
+                            tagTimelineData[tag][dateKey] = {
+                                count: 0,
+                                totalViews: 0,
+                                totalLikes: 0,
+                                videos: []
+                            };
+                        }
                         
-                        if (!tagCategoryMatrix[tag]) {
-                            tagCategoryMatrix[tag] = {};
-                        }
-                        if (!tagCategoryMatrix[tag][category]) {
-                            tagCategoryMatrix[tag][category] = 0;
-                        }
-                        tagCategoryMatrix[tag][category]++;
+                        tagTimelineData[tag][dateKey].count++;
+                        tagTimelineData[tag][dateKey].totalViews += video.views || 0;
+                        tagTimelineData[tag][dateKey].totalLikes += video.likes || 0;
+                        tagTimelineData[tag][dateKey].videos.push({
+                            title: video.title,
+                            views: video.views,
+                            country: video.country
+                        });
                     });
                 }
             });
 
-            // Convert to arrays and filter for significant tags
-            const significantTags = Object.entries(tagCategoryMatrix)
-                .filter(([tag, categoryData]) => {
-                    const totalCount = Object.values(categoryData).reduce((sum, count) => sum + count, 0);
-                    return totalCount >= 3; // Minimum 3 occurrences across all categories
+            // Filter for significant tags and create timeline data
+            const significantTags = Object.entries(tagTimelineData)
+                .filter(([tag, timeData]) => {
+                    const totalCount = Object.values(timeData).reduce((sum, dayData) => sum + dayData.count, 0);
+                    return totalCount >= 5; // Minimum 5 occurrences across all time
                 })
                 .sort((a, b) => {
-                    const aTotal = Object.values(a[1]).reduce((sum, count) => sum + count, 0);
-                    const bTotal = Object.values(b[1]).reduce((sum, count) => sum + count, 0);
+                    const aTotal = Object.values(a[1]).reduce((sum, dayData) => sum + dayData.count, 0);
+                    const bTotal = Object.values(b[1]).reduce((sum, dayData) => sum + dayData.count, 0);
                     return bTotal - aTotal;
                 })
-                .slice(0, 25) // Top 25 tags for matrix readability
-                .map(([tag, categoryData]) => tag);
+                .slice(0, 15) // Top 15 tags for timeline readability
+                .map(([tag, timeData]) => tag);
 
-            const sortedCategories = Array.from(categories).sort();
-
-            // Build matrix data structure
-            const matrixData = [];
-            significantTags.forEach((tag, tagIndex) => {
-                sortedCategories.forEach((category, categoryIndex) => {
-                    const count = tagCategoryMatrix[tag] && tagCategoryMatrix[tag][category] ? 
-                        tagCategoryMatrix[tag][category] : 0;
+            const sortedDates = Array.from(allDates).sort();
+            
+            // Build timeline data structure
+            const timelineData = significantTags.map(tag => {
+                const tagData = {
+                    tag,
+                    timeline: []
+                };
+                
+                sortedDates.forEach(dateKey => {
+                    const dayData = tagTimelineData[tag] && tagTimelineData[tag][dateKey] ? 
+                        tagTimelineData[tag][dateKey] : { count: 0, totalViews: 0, totalLikes: 0 };
                     
-                    matrixData.push({
-                        tag,
-                        category,
-                        count,
-                        tagIndex,
-                        categoryIndex
+                    tagData.timeline.push({
+                        date: new Date(dateKey),
+                        dateKey,
+                        count: dayData.count,
+                        totalViews: dayData.totalViews,
+                        totalLikes: dayData.totalLikes,
+                        avgViews: dayData.count > 0 ? dayData.totalViews / dayData.count : 0
                     });
                 });
+                
+                return tagData;
             });
 
             // Calculate statistics
-            const allCounts = matrixData.map(d => d.count).filter(c => c > 0);
-            const maxCount = Math.max(...allCounts);
-            const minCount = Math.min(...allCounts);
-            const avgCount = allCounts.reduce((sum, c) => sum + c, 0) / allCounts.length;
-
-            console.log(`Tag Matrix: ${significantTags.length} tags × ${sortedCategories.length} categories`);
+            const totalTagUsage = timelineData.reduce((sum, tagData) => 
+                sum + tagData.timeline.reduce((tagSum, day) => tagSum + day.count, 0), 0);
+            
+            console.log(`Tag Timeline: ${significantTags.length} tags across ${sortedDates.length} dates`);
             console.log('Sample filtered tags:', significantTags.slice(0, 10));
-            console.log('Total unique tags found before filtering:', Object.keys(tagCategoryMatrix).length);
+            console.log('Total unique tags found:', Object.keys(tagTimelineData).length);
             
             return {
-                matrixData,
+                timelineData,
                 tags: significantTags,
-                categories: sortedCategories,
+                dates: sortedDates,
                 stats: {
                     totalTags: significantTags.length,
-                    totalCategories: sortedCategories.length,
-                    maxCount,
-                    minCount,
-                    avgCount,
-                    totalCells: matrixData.length,
-                    filledCells: allCounts.length
+                    totalDates: sortedDates.length,
+                    totalUsage: totalTagUsage,
+                    avgUsagePerTag: totalTagUsage / significantTags.length,
+                    dateRange: {
+                        start: sortedDates[0],
+                        end: sortedDates[sortedDates.length - 1]
+                    }
                 }
             };
 
         } catch (error) {
-            console.error('Error processing tag relationship matrix data:', error);
-            console.error('Available categories:', Array.from(categories));
-            if (Object.keys(this.videoData).length > 0) {
-                const firstCountry = Object.keys(this.videoData)[0];
-                const sampleVideo = (this.videoData[firstCountry] || [])[0];
-                if (sampleVideo && sampleVideo.tags) {
-                    console.error('Sample raw tags:', sampleVideo.tags);
-                    const parsedTags = sampleVideo.tags.split('|').map(tag => tag.replace(/"/g, '').trim().toLowerCase());
-                    console.error('Sample parsed tags:', parsedTags);
-                }
-            }
+            console.error('Error processing tag evolution data:', error);
             return { 
-                matrixData: [],
+                timelineData: [],
                 tags: [],
-                categories: [],
+                dates: [],
                 stats: {}
             };
         }

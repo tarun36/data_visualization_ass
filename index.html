@@ -36,7 +36,7 @@
             <button class="nav-btn" data-viz="treemap">Channel Treemap</button>
             <button class="nav-btn" data-viz="engagement">Engagement Breakdown</button>
             <button class="nav-btn" data-viz="sankey">Publishing Timing</button>
-            <button class="nav-btn" data-viz="radar">Tag Matrix</button>
+            <button class="nav-btn" data-viz="radar">Tag Timeline</button>
 
         </nav>
 
@@ -159,18 +159,18 @@
             </div>
 
             <div id="radar" class="visualization">
-                <h2>📊 Tag Relationship Matrix</h2>
+                <h2>📈 Tag Evolution Timeline</h2>
                 <div class="filter-controls">
                     <div class="control-group">
-                        <label for="tag-view-filter">Matrix View:</label>
+                        <label for="tag-view-filter">Timeline View:</label>
                         <select id="tag-view-filter">
-                            <option value="overview" selected>All Categories</option>
+                            <option value="overview" selected>All Tags</option>
                             <option value="top-tags">Top Tags Only</option>
-                            <option value="detailed">Detailed View</option>
+                            <option value="trending">Trending Tags</option>
                         </select>
                     </div>
                     <div class="control-group">
-                        <label style="color: #7f8c8d; font-size: 12px;">See how tags relate to video categories • Excludes "none" tags</label>
+                        <label style="color: #7f8c8d; font-size: 12px;">Track tag popularity trends over time • Click legend to toggle lines</label>
                     </div>
                 </div>
                 <div class="chart-container" style="min-height: 500px;"></div>
