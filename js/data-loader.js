@@ -857,19 +857,28 @@ class DataLoader {
             Object.values(this.videoData).flat().forEach(video => {
                 if (video && video.publish_time) {
                     const publishDate = new Date(video.publish_time);
-                    const day = publishDate.getDay(); // 0-6 (Sun-Sat)
-                    const hour = publishDate.getHours(); // 0-23
                     
-                    const slot = timingData[day][hour];
-                    slot.count++;
-                    slot.totalViews += video.views || 0;
-                    slot.totalLikes += video.likes || 0;
-                    slot.totalComments += video.comment_count || 0;
-                    slot.videos.push({
-                        title: video.title,
-                        views: video.views,
-                        country: video.country
-                    });
+                    // Validate the date and ensure day/hour are valid numbers
+                    if (!isNaN(publishDate.getTime())) {
+                        const day = publishDate.getDay(); // 0-6 (Sun-Sat)
+                        const hour = publishDate.getHours(); // 0-23
+                        
+                        // Double check that day and hour are valid indices
+                        if (day >= 0 && day <= 6 && hour >= 0 && hour <= 23) {
+                            const slot = timingData[day][hour];
+                            if (slot) {
+                                slot.count++;
+                                slot.totalViews += video.views || 0;
+                                slot.totalLikes += video.likes || 0;
+                                slot.totalComments += video.comment_count || 0;
+                                slot.videos.push({
+                                    title: video.title,
+                                    views: video.views,
+                                    country: video.country
+                                });
+                            }
+                        }
+                    }
                 }
             });
             
@@ -893,14 +902,27 @@ class DataLoader {
                 }
             }
             
+            // Calculate max success rate safely
+            const successRates = heatmapArray.map(d => d.successRate).filter(rate => !isNaN(rate) && isFinite(rate));
+            const maxSuccess = successRates.length > 0 ? Math.max(...successRates) : 1;
+            
             return {
                 data: heatmapArray,
                 days: daysOfWeek,
-                maxSuccess: Math.max(...heatmapArray.map(d => d.successRate))
+                maxSuccess: maxSuccess
             };
             
         } catch (error) {
             console.error('Error processing publishing timing data:', error);
+            console.error('Video data structure:', Object.keys(this.videoData));
+            if (Object.keys(this.videoData).length > 0) {
+                const firstCountry = Object.keys(this.videoData)[0];
+                const sampleVideos = (this.videoData[firstCountry] || []).slice(0, 3);
+                console.error('Sample videos:', sampleVideos.map(v => ({
+                    publish_time: v?.publish_time,
+                    title: v?.title?.substring(0, 50)
+                })));
+            }
             return { data: [], days: [], maxSuccess: 0 };
         }
     }
