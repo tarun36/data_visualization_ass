@@ -940,15 +940,33 @@ class DataLoader {
                     const category = video.category_name;
                     categories.add(category);
                     
-                    // Parse tags - split by | and clean quotes, filter out "none"
+                    // Parse tags - split by | and clean quotes, filter out "none" and similar
                     const videoTags = video.tags.split('|')
                         .map(tag => tag.replace(/"/g, '').trim().toLowerCase())
-                        .filter(tag => 
-                            tag.length > 2 && 
-                            tag.length < 30 && 
-                            tag !== 'none' && 
-                            !tag.includes('none')
-                        )
+                        .filter(tag => {
+                            // Filter out empty, too short/long, and "none" variations
+                            if (!tag || tag.length <= 2 || tag.length >= 30) return false;
+                            
+                            // Filter out various "none" patterns
+                            const nonePatterns = [
+                                'none', 'n/a', 'na', 'null', 'undefined', 
+                                'no tag', 'no tags', 'notag', 'notags',
+                                'empty', 'blank', '-', '_', '.'
+                            ];
+                            
+                            // Check if tag exactly matches any none pattern
+                            if (nonePatterns.includes(tag)) return false;
+                            
+                            // Check if tag contains "none" as a word (not part of another word)
+                            if (tag.includes('none') && (
+                                tag === 'none' || 
+                                tag.startsWith('none ') || 
+                                tag.endsWith(' none') || 
+                                tag.includes(' none ')
+                            )) return false;
+                            
+                            return true;
+                        })
                         .slice(0, 8); // Limit to first 8 tags per video
 
                     videoTags.forEach(tag => {
@@ -1004,6 +1022,9 @@ class DataLoader {
             const minCount = Math.min(...allCounts);
             const avgCount = allCounts.reduce((sum, c) => sum + c, 0) / allCounts.length;
 
+            console.log(`Tag Matrix: ${significantTags.length} tags × ${sortedCategories.length} categories`);
+            console.log('Sample filtered tags:', significantTags.slice(0, 10));
+            
             return {
                 matrixData,
                 tags: significantTags,
@@ -1021,6 +1042,16 @@ class DataLoader {
 
         } catch (error) {
             console.error('Error processing tag relationship matrix data:', error);
+            console.error('Available categories:', Array.from(categories));
+            if (Object.keys(this.videoData).length > 0) {
+                const firstCountry = Object.keys(this.videoData)[0];
+                const sampleVideo = (this.videoData[firstCountry] || [])[0];
+                if (sampleVideo && sampleVideo.tags) {
+                    console.error('Sample raw tags:', sampleVideo.tags);
+                    const parsedTags = sampleVideo.tags.split('|').map(tag => tag.replace(/"/g, '').trim().toLowerCase());
+                    console.error('Sample parsed tags:', parsedTags);
+                }
+            }
             return { 
                 matrixData: [],
                 tags: [],
