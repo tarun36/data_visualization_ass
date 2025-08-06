@@ -1031,18 +1031,38 @@ class DataLoader {
                 }
             });
 
-            // Filter for significant tags and create timeline data
+            // Filter for significant tags based on filterType and create timeline data
+            let tagLimit = 15;
+            let minOccurrences = 5;
+            
+            // Adjust filtering based on dropdown selection
+            switch (filterType) {
+                case 'top-tags':
+                    tagLimit = 10;
+                    minOccurrences = 10;
+                    break;
+                case 'trending':
+                    tagLimit = 8;
+                    minOccurrences = 15;
+                    break;
+                case 'overview':
+                default:
+                    tagLimit = 15;
+                    minOccurrences = 5;
+                    break;
+            }
+            
             const significantTags = Object.entries(tagTimelineData)
                 .filter(([tag, timeData]) => {
                     const totalCount = Object.values(timeData).reduce((sum, dayData) => sum + dayData.count, 0);
-                    return totalCount >= 5; // Minimum 5 occurrences across all time
+                    return totalCount >= minOccurrences;
                 })
                 .sort((a, b) => {
                     const aTotal = Object.values(a[1]).reduce((sum, dayData) => sum + dayData.count, 0);
                     const bTotal = Object.values(b[1]).reduce((sum, dayData) => sum + dayData.count, 0);
                     return bTotal - aTotal;
                 })
-                .slice(0, 15) // Top 15 tags for timeline readability
+                .slice(0, tagLimit)
                 .map(([tag, timeData]) => tag);
 
             const sortedDates = Array.from(allDates).sort();
@@ -1075,7 +1095,8 @@ class DataLoader {
             const totalTagUsage = timelineData.reduce((sum, tagData) => 
                 sum + tagData.timeline.reduce((tagSum, day) => tagSum + day.count, 0), 0);
             
-            console.log(`Tag Timeline: ${significantTags.length} tags across ${sortedDates.length} dates`);
+            console.log(`Tag Timeline (${filterType}): ${significantTags.length} tags across ${sortedDates.length} dates`);
+            console.log(`Filter settings: ${tagLimit} limit, ${minOccurrences} min occurrences`);
             console.log('Sample filtered tags:', significantTags.slice(0, 10));
             console.log('Total unique tags found:', Object.keys(tagTimelineData).length);
             

@@ -1802,13 +1802,25 @@ class Visualizations {
         // Extract all dates for the timeline
         const allDates = data.timelineData[0]?.timeline.map(d => d.date) || [];
         
+        if (allDates.length === 0) {
+            container.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; background-color: #f8f9fa; border-radius: 5px;">
+                    <div style="text-align: center; color: #6c757d;">
+                        <h4>No Timeline Data Available</h4>
+                        <p>No tag trends found for the selected filter criteria.</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
         // Scales
         const xScale = d3.scaleTime()
             .domain(d3.extent(allDates))
             .range([0, width]);
 
         const maxCount = d3.max(data.timelineData, tagData => 
-            d3.max(tagData.timeline, d => d.count));
+            d3.max(tagData.timeline, d => d.count)) || 10;
         
         const yScale = d3.scaleLinear()
             .domain([0, maxCount])
@@ -1899,16 +1911,21 @@ class Visualizations {
                 this.tooltip.style('opacity', 0);
             });
 
-        // Add axes
+        // Add axes with smart date formatting
+        const numDates = allDates.length;
+        const maxTicks = Math.min(10, Math.floor(width / 80)); // Prevent overcrowding
+        
         chartGroup.append('g')
             .attr('transform', `translate(0,${height})`)
             .call(d3.axisBottom(xScale)
-                .tickFormat(d3.timeFormat('%b %d')))
+                .ticks(maxTicks)
+                .tickFormat(d3.timeFormat(numDates > 30 ? '%b' : '%b %d')))
             .selectAll('text')
             .style('text-anchor', 'end')
             .attr('dx', '-.8em')
             .attr('dy', '.15em')
-            .attr('transform', 'rotate(-45)');
+            .attr('transform', 'rotate(-45)')
+            .style('font-size', '10px');
 
         chartGroup.append('g')
             .call(d3.axisLeft(yScale));
@@ -1950,12 +1967,17 @@ class Visualizations {
             .style('fill', '#666')
             .text('Tag popularity trends over time');
 
-        // Create interactive legend
+        // Create interactive legend with better positioning
+        const legendX = Math.min(width + margin.left + 10, width + margin.left + margin.right - 130);
         const legend = svg.append('g')
-            .attr('transform', `translate(${width + margin.left + 10}, ${margin.top})`);
+            .attr('transform', `translate(${legendX}, ${margin.top})`);
+
+        // Limit legend items to prevent overflow
+        const maxLegendItems = Math.floor((height - 40) / 20);
+        const legendData = data.timelineData.slice(0, maxLegendItems);
 
         const legendItems = legend.selectAll('.legend-item')
-            .data(data.timelineData)
+            .data(legendData)
             .enter().append('g')
             .attr('class', 'legend-item')
             .attr('transform', (d, i) => `translate(0, ${i * 20})`)
@@ -1987,6 +2009,15 @@ class Visualizations {
             .attr('stroke', (d, i) => colorScale(i))
             .attr('stroke-width', 3);
 
+        // Legend title
+        legend.append('text')
+            .attr('x', 0)
+            .attr('y', -10)
+            .style('font-size', '12px')
+            .style('font-weight', 'bold')
+            .style('fill', '#333')
+            .text('Tags:');
+
         legendItems.append('text')
             .attr('x', 20)
             .attr('y', 0)
@@ -1994,6 +2025,16 @@ class Visualizations {
             .style('font-size', '11px')
             .style('fill', '#333')
             .text(d => d.tag.length > 12 ? d.tag.substring(0, 12) + '...' : d.tag);
+
+        // Add note if some tags are hidden
+        if (data.timelineData.length > legendData.length) {
+            legend.append('text')
+                .attr('x', 0)
+                .attr('y', legendData.length * 20 + 15)
+                .style('font-size', '10px')
+                .style('fill', '#999')
+                .text(`... and ${data.timelineData.length - legendData.length} more`);
+        }
 
         // Add stats
         svg.append('text')
