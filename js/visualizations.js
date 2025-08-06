@@ -1770,7 +1770,326 @@ class Visualizations {
             .text('💡 Hover cells to see publishing stats • Darker colors = better performance');
     }
 
+    // 10. Tag Performance Dashboard - Comprehensive Tag Analysis
+    createTagPerformanceDashboard(data, container) {
+        this.clearVisualization(container);
+        
+        if (!data || !data.globalTags || data.globalTags.length === 0) {
+            container.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; background-color: #f8f9fa; border-radius: 5px;">
+                    <div style="text-align: center; color: #6c757d;">
+                        <h4>No Tag Data Available</h4>
+                        <p>Waiting for video tag data to load...</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
 
+        const containerRect = container.getBoundingClientRect();
+        const totalWidth = containerRect.width;
+        const totalHeight = containerRect.height;
+
+        // Create main container
+        const mainDiv = d3.select(container)
+            .append('div')
+            .style('width', '100%')
+            .style('height', '100%')
+            .style('display', 'flex')
+            .style('flex-direction', 'column');
+
+        // Add title
+        mainDiv.append('div')
+            .style('text-align', 'center')
+            .style('padding', '10px')
+            .style('background', '#f8f9fa')
+            .style('border-bottom', '2px solid #e9ecef')
+            .append('h3')
+            .style('margin', '0')
+            .style('color', '#495057')
+            .text('🏷️ Tag Performance Dashboard');
+
+        // Create dashboard grid
+        const dashboardGrid = mainDiv.append('div')
+            .style('display', 'grid')
+            .style('grid-template-columns', '1fr 1fr')
+            .style('grid-template-rows', '1fr 1fr')
+            .style('gap', '15px')
+            .style('padding', '15px')
+            .style('flex', '1')
+            .style('overflow', 'hidden');
+
+        // Panel 1: Top Tags Cloud
+        this.createTopTagsPanel(dashboardGrid, data.globalTags.slice(0, 20));
+        
+        // Panel 2: Tag Performance Scatter
+        this.createTagPerformancePanel(dashboardGrid, data.globalTags.slice(0, 25));
+        
+        // Panel 3: Tags by Category
+        this.createTagCategoryPanel(dashboardGrid, data.tagsByCategory);
+        
+        // Panel 4: Tags by Country
+        this.createTagCountryPanel(dashboardGrid, data.tagsByCountry);
+
+        // Add stats footer
+        mainDiv.append('div')
+            .style('text-align', 'center')
+            .style('padding', '10px')
+            .style('background', '#f8f9fa')
+            .style('border-top', '1px solid #e9ecef')
+            .style('font-size', '12px')
+            .style('color', '#6c757d')
+            .html(`📊 Total Tags: ${data.stats.totalUniqueTags} • Shown: ${data.stats.topTagsShown} • Avg per Video: ${(data.stats.avgTagsPerVideo || 0).toFixed(1)}`);
+    }
+
+    // Helper: Create Top Tags Panel (Word Cloud Style)
+    createTopTagsPanel(parent, tags) {
+        const panel = parent.append('div')
+            .style('background', 'white')
+            .style('border', '1px solid #dee2e6')
+            .style('border-radius', '8px')
+            .style('padding', '15px')
+            .style('overflow', 'hidden');
+
+        panel.append('h4')
+            .style('margin', '0 0 15px 0')
+            .style('color', '#495057')
+            .style('font-size', '16px')
+            .text('🌍 Global Top Tags');
+
+        const tagContainer = panel.append('div')
+            .style('display', 'flex')
+            .style('flex-wrap', 'wrap')
+            .style('gap', '8px')
+            .style('align-items', 'center')
+            .style('justify-content', 'center')
+            .style('height', 'calc(100% - 40px)')
+            .style('overflow', 'auto');
+
+        const maxCount = Math.max(...tags.map(d => d.count));
+        const minCount = Math.min(...tags.map(d => d.count));
+        const sizeScale = d3.scaleLinear()
+            .domain([minCount, maxCount])
+            .range([12, 28]);
+
+        const colorScale = d3.scaleSequential(d3.interpolateBlues)
+            .domain([minCount, maxCount]);
+
+        tagContainer.selectAll('.tag-bubble')
+            .data(tags)
+            .enter().append('div')
+            .attr('class', 'tag-bubble')
+            .style('display', 'inline-block')
+            .style('padding', '6px 12px')
+            .style('margin', '2px')
+            .style('background', d => colorScale(d.count))
+            .style('color', 'white')
+            .style('border-radius', '20px')
+            .style('font-size', d => `${sizeScale(d.count)}px`)
+            .style('font-weight', 'bold')
+            .style('cursor', 'pointer')
+            .style('transition', 'transform 0.2s')
+            .text(d => d.tag)
+            .on('mouseover', function(event, d) {
+                d3.select(this).style('transform', 'scale(1.1)');
+                parent.select('.tooltip').remove();
+                parent.append('div')
+                    .attr('class', 'tooltip')
+                    .style('position', 'absolute')
+                    .style('background', 'rgba(0,0,0,0.8)')
+                    .style('color', 'white')
+                    .style('padding', '8px')
+                    .style('border-radius', '4px')
+                    .style('font-size', '12px')
+                    .style('pointer-events', 'none')
+                    .style('z-index', '1000')
+                    .html(`
+                        <strong>${d.tag}</strong><br/>
+                        Count: ${d.count}<br/>
+                        Avg Views: ${d.avgViews.toLocaleString()}<br/>
+                        Categories: ${d.categoryCount}<br/>
+                        Countries: ${d.countryCount}
+                    `)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 10) + 'px');
+            })
+            .on('mouseout', function() {
+                d3.select(this).style('transform', 'scale(1)');
+                parent.select('.tooltip').remove();
+            });
+    }
+
+    // Helper: Create Tag Performance Panel (Scatter Plot)
+    createTagPerformancePanel(parent, tags) {
+        const panel = parent.append('div')
+            .style('background', 'white')
+            .style('border', '1px solid #dee2e6')
+            .style('border-radius', '8px')
+            .style('padding', '15px');
+
+        panel.append('h4')
+            .style('margin', '0 0 10px 0')
+            .style('color', '#495057')
+            .style('font-size', '16px')
+            .text('📈 Tag Performance');
+
+        const svg = panel.append('svg')
+            .style('width', '100%')
+            .style('height', 'calc(100% - 30px)');
+
+        const svgNode = svg.node();
+        const rect = svgNode.getBoundingClientRect();
+        const width = rect.width - 40;
+        const height = rect.height - 40;
+
+        const chartGroup = svg.append('g')
+            .attr('transform', 'translate(30, 20)');
+
+        const xScale = d3.scaleLinear()
+            .domain(d3.extent(tags, d => d.count))
+            .range([0, width]);
+
+        const yScale = d3.scaleLinear()
+            .domain(d3.extent(tags, d => d.engagement))
+            .range([height, 0]);
+
+        const colorScale = d3.scaleSequential(d3.interpolateViridis)
+            .domain(d3.extent(tags, d => d.avgViews));
+
+        // Add axes
+        chartGroup.append('g')
+            .attr('transform', `translate(0, ${height})`)
+            .call(d3.axisBottom(xScale).ticks(5));
+
+        chartGroup.append('g')
+            .call(d3.axisLeft(yScale).ticks(5).tickFormat(d => `${(d * 100).toFixed(1)}%`));
+
+        // Add dots
+        chartGroup.selectAll('.performance-dot')
+            .data(tags)
+            .enter().append('circle')
+            .attr('class', 'performance-dot')
+            .attr('cx', d => xScale(d.count))
+            .attr('cy', d => yScale(d.engagement))
+            .attr('r', 4)
+            .attr('fill', d => colorScale(d.avgViews))
+            .attr('stroke', 'white')
+            .attr('stroke-width', 1)
+            .style('cursor', 'pointer');
+
+        // Add labels
+        svg.append('text')
+            .attr('x', width / 2 + 30)
+            .attr('y', height + 35)
+            .style('text-anchor', 'middle')
+            .style('font-size', '11px')
+            .text('Tag Frequency');
+
+        svg.append('text')
+            .attr('transform', 'rotate(-90)')
+            .attr('y', 15)
+            .attr('x', -height / 2)
+            .style('text-anchor', 'middle')
+            .style('font-size', '11px')
+            .text('Engagement Rate');
+    }
+
+    // Helper: Create Tag Category Panel
+    createTagCategoryPanel(parent, tagsByCategory) {
+        const panel = parent.append('div')
+            .style('background', 'white')
+            .style('border', '1px solid #dee2e6')
+            .style('border-radius', '8px')
+            .style('padding', '15px')
+            .style('overflow', 'auto');
+
+        panel.append('h4')
+            .style('margin', '0 0 15px 0')
+            .style('color', '#495057')
+            .style('font-size', '16px')
+            .text('📂 Tags by Category');
+
+        const categories = Object.entries(tagsByCategory).slice(0, 6); // Top 6 categories
+
+        categories.forEach(([category, tags]) => {
+            const categoryDiv = panel.append('div')
+                .style('margin-bottom', '15px');
+
+            categoryDiv.append('div')
+                .style('font-weight', 'bold')
+                .style('color', '#343a40')
+                .style('font-size', '13px')
+                .style('margin-bottom', '5px')
+                .text(category);
+
+            const tagDiv = categoryDiv.append('div')
+                .style('display', 'flex')
+                .style('flex-wrap', 'wrap')
+                .style('gap', '4px');
+
+            tagDiv.selectAll('.category-tag')
+                .data(tags.slice(0, 5))
+                .enter().append('span')
+                .attr('class', 'category-tag')
+                .style('background', '#e9ecef')
+                .style('color', '#495057')
+                .style('padding', '2px 8px')
+                .style('border-radius', '12px')
+                .style('font-size', '11px')
+                .text(d => `${d.tag} (${d.count})`);
+        });
+    }
+
+    // Helper: Create Tag Country Panel
+    createTagCountryPanel(parent, tagsByCountry) {
+        const panel = parent.append('div')
+            .style('background', 'white')
+            .style('border', '1px solid #dee2e6')
+            .style('border-radius', '8px')
+            .style('padding', '15px')
+            .style('overflow', 'auto');
+
+        panel.append('h4')
+            .style('margin', '0 0 15px 0')
+            .style('color', '#495057')
+            .style('font-size', '16px')
+            .text('🌎 Tags by Country');
+
+        const countries = Object.entries(tagsByCountry).slice(0, 5); // Top 5 countries
+        const countryNames = {
+            'US': 'United States', 'CA': 'Canada', 'GB': 'United Kingdom',
+            'DE': 'Germany', 'FR': 'France', 'IN': 'India', 'JP': 'Japan',
+            'KR': 'South Korea', 'MX': 'Mexico', 'RU': 'Russia'
+        };
+
+        countries.forEach(([country, tags]) => {
+            const countryDiv = panel.append('div')
+                .style('margin-bottom', '15px');
+
+            countryDiv.append('div')
+                .style('font-weight', 'bold')
+                .style('color', '#343a40')
+                .style('font-size', '13px')
+                .style('margin-bottom', '5px')
+                .text(countryNames[country] || country);
+
+            const tagDiv = countryDiv.append('div')
+                .style('display', 'flex')
+                .style('flex-wrap', 'wrap')
+                .style('gap', '4px');
+
+            tagDiv.selectAll('.country-tag')
+                .data(tags.slice(0, 6))
+                .enter().append('span')
+                .attr('class', 'country-tag')
+                .style('background', '#d4edda')
+                .style('color', '#155724')
+                .style('padding', '2px 8px')
+                .style('border-radius', '12px')
+                .style('font-size', '11px')
+                .text(d => `${d.tag} (${d.count})`);
+        });
+    }
 
 }
 

@@ -927,25 +927,124 @@ class DataLoader {
         }
     }
 
-    // Get channel timeline data for success tracking
-    getChannelTimelineData(countriesFilter = 'all', minViews = 10000) {
+    // Get tag performance data for dashboard
+    getTagPerformanceData(filterType = 'all') {
         try {
-            const filteredVideos = countriesFilter === 'all' ? 
-                Object.values(this.videoData).flat() : 
-                (this.videoData[countriesFilter] || []);
+            const tagData = {};
+            const categoryTagData = {};
+            const countryTagData = {};
+            
+            // Process all videos to extract tag data
+            Object.entries(this.videoData).forEach(([country, videos]) => {
+                videos.forEach(video => {
+                    if (video && video.tags) {
+                        // Parse tags - split by | and clean quotes
+                        const tags = video.tags.split('|')
+                            .map(tag => tag.replace(/"/g, '').trim())
+                            .filter(tag => tag.length > 2 && tag.length < 30)
+                            .slice(0, 10); // Limit to first 10 tags per video
 
-            // Filter videos by minimum views and valid publish time
-            const validVideos = filteredVideos.filter(video => 
-                video && 
-                video.views >= minViews && 
-                video.publish_time && 
-                video.channel_title
-            );
+                        tags.forEach(tag => {
+                            // Global tag data
+                            if (!tagData[tag]) {
+                                tagData[tag] = {
+                                    count: 0,
+                                    totalViews: 0,
+                                    totalLikes: 0,
+                                    totalComments: 0,
+                                    categories: new Set(),
+                                    countries: new Set()
+                                };
+                            }
+                            
+                            tagData[tag].count++;
+                            tagData[tag].totalViews += video.views || 0;
+                            tagData[tag].totalLikes += video.likes || 0;
+                            tagData[tag].totalComments += video.comment_count || 0;
+                            tagData[tag].categories.add(video.category_name);
+                            tagData[tag].countries.add(country);
 
-            return validVideos;
+                            // Category-specific tag data
+                            const category = video.category_name;
+                            if (!categoryTagData[category]) {
+                                categoryTagData[category] = {};
+                            }
+                            if (!categoryTagData[category][tag]) {
+                                categoryTagData[category][tag] = 0;
+                            }
+                            categoryTagData[category][tag]++;
+
+                            // Country-specific tag data
+                            if (!countryTagData[country]) {
+                                countryTagData[country] = {};
+                            }
+                            if (!countryTagData[country][tag]) {
+                                countryTagData[country][tag] = 0;
+                            }
+                            countryTagData[country][tag]++;
+                        });
+                    }
+                });
+            });
+
+            // Convert to arrays and calculate metrics
+            const topTags = Object.entries(tagData)
+                .filter(([tag, data]) => data.count >= 3) // Minimum 3 occurrences
+                .map(([tag, data]) => ({
+                    tag,
+                    count: data.count,
+                    avgViews: data.totalViews / data.count,
+                    avgLikes: data.totalLikes / data.count,
+                    avgComments: data.totalComments / data.count,
+                    engagement: ((data.totalLikes + data.totalComments) / data.totalViews) || 0,
+                    categoryCount: data.categories.size,
+                    countryCount: data.countries.size,
+                    categories: Array.from(data.categories),
+                    countries: Array.from(data.countries)
+                }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 50); // Top 50 tags
+
+            // Get top tags by category
+            const topTagsByCategory = {};
+            Object.entries(categoryTagData).forEach(([category, tags]) => {
+                topTagsByCategory[category] = Object.entries(tags)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 10) // Top 10 per category
+                    .map(([tag, count]) => ({ tag, count }));
+            });
+
+            // Get top tags by country  
+            const topTagsByCountry = {};
+            Object.entries(countryTagData).forEach(([country, tags]) => {
+                topTagsByCountry[country] = Object.entries(tags)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 15) // Top 15 per country
+                    .map(([tag, count]) => ({ tag, count }));
+            });
+
+            return {
+                globalTags: topTags,
+                tagsByCategory: topTagsByCategory,
+                tagsByCountry: topTagsByCountry,
+                stats: {
+                    totalUniqueTags: Object.keys(tagData).length,
+                    topTagsShown: topTags.length,
+                    avgTagsPerVideo: Object.values(this.videoData).flat()
+                        .filter(v => v && v.tags)
+                        .reduce((sum, v) => sum + v.tags.split('|').length, 0) / 
+                        Object.values(this.videoData).flat().filter(v => v && v.tags).length
+                }
+            };
+
         } catch (error) {
-            console.error('Error processing channel timeline data:', error);
-            return [];
+            console.error('Error processing tag performance data:', error);
+            return { 
+                globalTags: [], 
+                tagsByCategory: {}, 
+                tagsByCountry: {},
+                stats: {}
+            };
         }
     }
 

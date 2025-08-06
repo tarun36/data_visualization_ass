@@ -36,7 +36,7 @@
             <button class="nav-btn" data-viz="treemap">Channel Treemap</button>
             <button class="nav-btn" data-viz="engagement">Engagement Breakdown</button>
             <button class="nav-btn" data-viz="sankey">Publishing Timing</button>
-            <button class="nav-btn" data-viz="radar">Channel Timeline</button>
+            <button class="nav-btn" data-viz="radar">Tag Dashboard</button>
 
         </nav>
 
@@ -159,21 +159,22 @@
             </div>
 
             <div id="radar" class="visualization">
-                <h2>📈 Channel Success Timeline</h2>
+                <h2>🏷️ Tag Performance Dashboard</h2>
                 <div class="filter-controls">
                     <div class="control-group">
-                        <label for="radar-countries">Countries to Display:</label>
-                        <select id="radar-countries">
-                            <option value="all" selected>All Countries</option>
-                            <option value="top5">Top 5 Countries</option>
-                            <option value="top3">Top 3 Countries</option>
+                        <label for="tag-view-filter">Dashboard View:</label>
+                        <select id="tag-view-filter">
+                            <option value="overview" selected>Full Overview</option>
+                            <option value="global">Global Tags Only</option>
+                            <option value="categories">By Categories</option>
+                            <option value="countries">By Countries</option>
                         </select>
                     </div>
                     <div class="control-group">
-                        <label style="color: #7f8c8d; font-size: 12px;">Track how channels grow and achieve success over time</label>
+                        <label style="color: #7f8c8d; font-size: 12px;">Comprehensive analysis of tag usage, performance and trends</label>
                     </div>
                 </div>
-                <div class="chart-container"></div>
+                <div class="chart-container" style="min-height: 500px;"></div>
             </div>
 
         </main>
