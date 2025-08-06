@@ -8,6 +8,16 @@
     <link rel="stylesheet" href="css/main.css">
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+    <script>
+        // Verify d3-sankey is loaded
+        window.addEventListener('DOMContentLoaded', function() {
+            if (typeof d3.sankey !== 'function') {
+                console.error('d3-sankey library failed to load. Sankey charts will not work.');
+            } else {
+                console.log('d3-sankey library loaded successfully');
+            }
+        });
+    </script>
 </head>
 <body>
     <div class="container">
@@ -25,8 +35,8 @@
             <button class="nav-btn" data-viz="heatmap">Country Heatmap</button>
             <button class="nav-btn" data-viz="treemap">Channel Treemap</button>
             <button class="nav-btn" data-viz="engagement">Engagement Breakdown</button>
-            <button class="nav-btn" data-viz="sankey">Category Flow</button>
-            <button class="nav-btn" data-viz="radar">Country Comparison</button>
+            <button class="nav-btn" data-viz="sankey">Publishing Timing</button>
+            <button class="nav-btn" data-viz="radar">Tag Timeline</button>
 
         </nav>
 
@@ -139,41 +149,31 @@
             </div>
 
             <div id="sankey" class="visualization">
-                <h2>Category Flow Analysis</h2>
+                <h2>📅 Publishing Timing Strategy</h2>
                 <div class="filter-controls">
                     <div class="control-group">
-                        <label for="sankey-flow-type">Flow Type:</label>
-                        <select id="sankey-flow-type">
-                            <option value="country-category" selected>Country → Category</option>
-                            <option value="category-engagement">Category → Engagement</option>
-                            <option value="country-engagement">Country → Engagement</option>
-                        </select>
+                        <label style="color: #7f8c8d; font-size: 12px;">Discover the best times to publish videos for maximum success</label>
                     </div>
                 </div>
                 <div class="chart-container"></div>
             </div>
 
             <div id="radar" class="visualization">
-                <h2>Country Performance Comparison</h2>
+                <h2>📈 Tag Evolution Timeline</h2>
                 <div class="filter-controls">
                     <div class="control-group">
-                        <label for="radar-metrics">Metrics to Compare:</label>
-                        <select id="radar-metrics">
-                            <option value="engagement" selected>Engagement Metrics</option>
-                            <option value="views">Views Metrics</option>
-                            <option value="all">All Metrics</option>
+                        <label for="tag-view-filter">Timeline View:</label>
+                        <select id="tag-view-filter">
+                            <option value="overview" selected>All Tags</option>
+                            <option value="top-tags">Top Tags Only</option>
+                            <option value="trending">Trending Tags</option>
                         </select>
                     </div>
                     <div class="control-group">
-                        <label for="radar-countries">Countries to Display:</label>
-                        <select id="radar-countries">
-                            <option value="all" selected>All Countries</option>
-                            <option value="top5">Top 5 Countries</option>
-                            <option value="top3">Top 3 Countries</option>
-                        </select>
+                        <label style="color: #7f8c8d; font-size: 12px;">Track tag popularity trends over time • Click legend to toggle lines</label>
                     </div>
                 </div>
-                <div class="chart-container"></div>
+                <div class="chart-container" style="min-height: 500px;"></div>
             </div>
 
         </main>

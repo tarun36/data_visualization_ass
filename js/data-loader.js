@@ -59,6 +59,13 @@ class DataLoader {
     // Parse CSV data
     parseCSV(text, country) {
         const lines = text.trim().split('\n');
+        
+        // Check for empty or malformed CSV
+        if (lines.length < 2) {
+            console.warn(`CSV file for ${country} appears to be empty or malformed.`);
+            return [];
+        }
+        
         const headers = lines[0].split(',');
         const data = [];
 
@@ -98,6 +105,8 @@ class DataLoader {
         
         return data;
     }
+
+
 
     // Parse CSV line handling quoted fields
     parseCSVLine(line) {
@@ -773,7 +782,10 @@ class DataLoader {
                 const avgLikes = totalLikes / totalVideos;
                 const avgComments = totalComments / totalVideos;
                 const avgDislikes = totalDislikes / totalVideos;
-                const engagementRate = totalLikes > 0 ? (totalComments / totalLikes) * 100 : 0;
+                
+                // Calculate engagement rate more accurately
+                const engagementRate = avgViews > 0 ? ((avgLikes + avgComments) / avgViews) * 100 : 0;
+                const likeToDislikeRatio = avgDislikes > 0 ? avgLikes / avgDislikes : avgLikes;
                 const categoryDiversity = new Set(videos.map(video => video.category_name)).size;
                 
                 const data = {
@@ -781,26 +793,337 @@ class DataLoader {
                     countryCode: country
                 };
                 
-                if (metricsType === 'engagement' || metricsType === 'all') {
-                    data.avgLikes = avgLikes;
-                    data.avgComments = avgComments;
-                    data.engagementRate = engagementRate;
-                    data.avgDislikes = avgDislikes;
-                }
-                
-                if (metricsType === 'views' || metricsType === 'all') {
-                    data.avgViews = avgViews;
-                    data.totalVideos = totalVideos;
-                    data.categoryDiversity = categoryDiversity;
+                // Add metrics based on selected type
+                switch (metricsType) {
+                    case 'engagement':
+                        data.avgLikes = avgLikes;
+                        data.avgComments = avgComments;
+                        data.engagementRate = engagementRate;
+                        break;
+                        
+                    case 'views':
+                        data.avgViews = avgViews;
+                        data.totalVideos = totalVideos;
+                        data.categoryDiversity = categoryDiversity;
+                        break;
+                        
+                    case 'all':
+                    default:
+                        data.avgViews = avgViews;
+                        data.avgLikes = avgLikes;
+                        data.avgComments = avgComments;
+                        data.engagementRate = engagementRate;
+                        data.totalVideos = totalVideos;
+                        data.categoryDiversity = categoryDiversity;
+                        data.likeToDislikeRatio = likeToDislikeRatio;
+                        break;
                 }
                 
                 return data;
             }).filter(Boolean);
 
+            // Sort by average views for consistent ordering
+            radarData.sort((a, b) => (b.avgViews || 0) - (a.avgViews || 0));
+
+            console.log(`Generated radar data for ${radarData.length} countries with ${metricsType} metrics`);
             return radarData;
         } catch (error) {
             console.error('Error in getRadarData:', error);
             return [];
+        }
+    }
+
+    // Get publishing timing data for heatmap (day vs hour analysis)
+    getPublishingTimingData() {
+        try {
+            const timingData = {};
+            const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            
+            // Initialize grid: day x hour
+            for (let day = 0; day < 7; day++) {
+                timingData[day] = {};
+                for (let hour = 0; hour < 24; hour++) {
+                    timingData[day][hour] = {
+                        count: 0,
+                        totalViews: 0,
+                        totalLikes: 0,
+                        totalComments: 0,
+                        videos: []
+                    };
+                }
+            }
+            
+            // Process all videos
+            Object.values(this.videoData).flat().forEach(video => {
+                if (video && video.publish_time) {
+                    const publishDate = new Date(video.publish_time);
+                    
+                    // Validate the date and ensure day/hour are valid numbers
+                    if (!isNaN(publishDate.getTime())) {
+                        const day = publishDate.getDay(); // 0-6 (Sun-Sat)
+                        const hour = publishDate.getHours(); // 0-23
+                        
+                        // Double check that day and hour are valid indices
+                        if (day >= 0 && day <= 6 && hour >= 0 && hour <= 23) {
+                            const slot = timingData[day][hour];
+                            if (slot) {
+                                slot.count++;
+                                slot.totalViews += video.views || 0;
+                                slot.totalLikes += video.likes || 0;
+                                slot.totalComments += video.comment_count || 0;
+                                slot.videos.push({
+                                    title: video.title,
+                                    views: video.views,
+                                    country: video.country
+                                });
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Calculate overall statistics for proper success rate calculation
+            let totalViews = 0;
+            let totalVideos = 0;
+            const allSlots = [];
+            
+            for (let day = 0; day < 7; day++) {
+                for (let hour = 0; hour < 24; hour++) {
+                    const slot = timingData[day][hour];
+                    if (slot.count > 0) {
+                        totalViews += slot.totalViews;
+                        totalVideos += slot.count;
+                        allSlots.push(slot);
+                    }
+                }
+            }
+            
+            const overallAvgViews = totalVideos > 0 ? totalViews / totalVideos : 0;
+            
+            // Convert to array format for visualization with proper success rate
+            const heatmapArray = [];
+            for (let day = 0; day < 7; day++) {
+                for (let hour = 0; hour < 24; hour++) {
+                    const slot = timingData[day][hour];
+                    const avgViews = slot.count > 0 ? slot.totalViews / slot.count : 0;
+                    
+                    // Calculate success rate as percentage relative to overall average
+                    // Cap at 100% for logical interpretation
+                    let successRate = 0;
+                    if (slot.count > 0 && overallAvgViews > 0) {
+                        successRate = Math.min(100, (avgViews / overallAvgViews) * 100);
+                    }
+                    
+                    heatmapArray.push({
+                        day: day,
+                        dayName: daysOfWeek[day],
+                        hour: hour,
+                        count: slot.count,
+                        avgViews: avgViews,
+                        avgLikes: slot.count > 0 ? slot.totalLikes / slot.count : 0,
+                        avgComments: slot.count > 0 ? slot.totalComments / slot.count : 0,
+                        totalViews: slot.totalViews,
+                        successRate: successRate, // Now properly capped at 100%
+                        videos: slot.videos
+                    });
+                }
+            }
+            
+            // Max success rate is now always 100 or less
+            const successRates = heatmapArray.map(d => d.successRate).filter(rate => !isNaN(rate) && isFinite(rate));
+            const maxSuccess = successRates.length > 0 ? Math.max(...successRates) : 100;
+            
+            console.log(`Publishing Timing Stats:`);
+            console.log(`- Overall average views: ${overallAvgViews.toLocaleString()}`);
+            console.log(`- Max success rate: ${maxSuccess.toFixed(1)}%`);
+            console.log(`- Success rates range: ${Math.min(...successRates).toFixed(1)}% - ${Math.max(...successRates).toFixed(1)}%`);
+            
+            return {
+                data: heatmapArray,
+                days: daysOfWeek,
+                maxSuccess: maxSuccess
+            };
+            
+        } catch (error) {
+            console.error('Error processing publishing timing data:', error);
+            console.error('Video data structure:', Object.keys(this.videoData));
+            if (Object.keys(this.videoData).length > 0) {
+                const firstCountry = Object.keys(this.videoData)[0];
+                const sampleVideos = (this.videoData[firstCountry] || []).slice(0, 3);
+                console.error('Sample videos:', sampleVideos.map(v => ({
+                    publish_time: v?.publish_time,
+                    title: v?.title?.substring(0, 50)
+                })));
+            }
+            return { data: [], days: [], maxSuccess: 0 };
+        }
+    }
+
+    // Get tag evolution timeline data
+    getTagEvolutionData(filterType = 'all') {
+        try {
+            const tagTimelineData = {};
+            const allDates = new Set();
+            
+            // Process all videos to build tag timeline
+            Object.values(this.videoData).flat().forEach(video => {
+                if (video && video.tags && video.trending_date_parsed) {
+                    const trendingDate = video.trending_date_parsed;
+                    const dateKey = trendingDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+                    allDates.add(dateKey);
+                    
+                    // Parse tags - split by | and clean quotes, filter out "none" and similar
+                    const rawTags = video.tags.split('|').map(tag => tag.replace(/"/g, '').trim().toLowerCase());
+                    const videoTags = rawTags.filter(tag => {
+                        // Filter out empty, too short/long, and "none" variations
+                        if (!tag || tag.length <= 2 || tag.length >= 30) return false;
+                        
+                        // Filter out various "none" patterns including [none] format
+                        const nonePatterns = [
+                            'none', '[none]', 'n/a', 'na', 'null', 'undefined', 
+                            'no tag', 'no tags', 'notag', 'notags',
+                            'empty', 'blank', '-', '_', '.', 
+                            '[n/a]', '[na]', '[null]', '[empty]', '[blank]'
+                        ];
+                        
+                        // Check if tag exactly matches any none pattern
+                        if (nonePatterns.includes(tag)) return false;
+                        
+                        // Check for bracketed none variations
+                        if (tag.startsWith('[') && tag.endsWith(']')) {
+                            const innerTag = tag.slice(1, -1);
+                            if (nonePatterns.includes(innerTag)) return false;
+                        }
+                        
+                        // Check if tag contains "none" as a word
+                        if (tag.includes('none') && (
+                            tag === 'none' || 
+                            tag.startsWith('none ') || 
+                            tag.endsWith(' none') || 
+                            tag.includes(' none ')
+                        )) return false;
+                        
+                        return true;
+                    }).slice(0, 8);
+
+                    videoTags.forEach(tag => {
+                        if (!tagTimelineData[tag]) {
+                            tagTimelineData[tag] = {};
+                        }
+                        if (!tagTimelineData[tag][dateKey]) {
+                            tagTimelineData[tag][dateKey] = {
+                                count: 0,
+                                totalViews: 0,
+                                totalLikes: 0,
+                                videos: []
+                            };
+                        }
+                        
+                        tagTimelineData[tag][dateKey].count++;
+                        tagTimelineData[tag][dateKey].totalViews += video.views || 0;
+                        tagTimelineData[tag][dateKey].totalLikes += video.likes || 0;
+                        tagTimelineData[tag][dateKey].videos.push({
+                            title: video.title,
+                            views: video.views,
+                            country: video.country
+                        });
+                    });
+                }
+            });
+
+            // Filter for significant tags based on filterType and create timeline data
+            let tagLimit = 15;
+            let minOccurrences = 5;
+            
+            // Adjust filtering based on dropdown selection
+            switch (filterType) {
+                case 'top-tags':
+                    tagLimit = 10;
+                    minOccurrences = 10;
+                    break;
+                case 'trending':
+                    tagLimit = 8;
+                    minOccurrences = 15;
+                    break;
+                case 'overview':
+                default:
+                    tagLimit = 15;
+                    minOccurrences = 5;
+                    break;
+            }
+            
+            const significantTags = Object.entries(tagTimelineData)
+                .filter(([tag, timeData]) => {
+                    const totalCount = Object.values(timeData).reduce((sum, dayData) => sum + dayData.count, 0);
+                    return totalCount >= minOccurrences;
+                })
+                .sort((a, b) => {
+                    const aTotal = Object.values(a[1]).reduce((sum, dayData) => sum + dayData.count, 0);
+                    const bTotal = Object.values(b[1]).reduce((sum, dayData) => sum + dayData.count, 0);
+                    return bTotal - aTotal;
+                })
+                .slice(0, tagLimit)
+                .map(([tag, timeData]) => tag);
+
+            const sortedDates = Array.from(allDates).sort();
+            
+            // Build timeline data structure
+            const timelineData = significantTags.map(tag => {
+                const tagData = {
+                    tag,
+                    timeline: []
+                };
+                
+                sortedDates.forEach(dateKey => {
+                    const dayData = tagTimelineData[tag] && tagTimelineData[tag][dateKey] ? 
+                        tagTimelineData[tag][dateKey] : { count: 0, totalViews: 0, totalLikes: 0 };
+                    
+                    tagData.timeline.push({
+                        date: new Date(dateKey),
+                        dateKey,
+                        count: dayData.count,
+                        totalViews: dayData.totalViews,
+                        totalLikes: dayData.totalLikes,
+                        avgViews: dayData.count > 0 ? dayData.totalViews / dayData.count : 0
+                    });
+                });
+                
+                return tagData;
+            });
+
+            // Calculate statistics
+            const totalTagUsage = timelineData.reduce((sum, tagData) => 
+                sum + tagData.timeline.reduce((tagSum, day) => tagSum + day.count, 0), 0);
+            
+            console.log(`Tag Timeline (${filterType}): ${significantTags.length} tags across ${sortedDates.length} dates`);
+            console.log(`Filter settings: ${tagLimit} limit, ${minOccurrences} min occurrences`);
+            console.log('Sample filtered tags:', significantTags.slice(0, 10));
+            console.log('Total unique tags found:', Object.keys(tagTimelineData).length);
+            
+            return {
+                timelineData,
+                tags: significantTags,
+                dates: sortedDates,
+                stats: {
+                    totalTags: significantTags.length,
+                    totalDates: sortedDates.length,
+                    totalUsage: totalTagUsage,
+                    avgUsagePerTag: totalTagUsage / significantTags.length,
+                    dateRange: {
+                        start: sortedDates[0],
+                        end: sortedDates[sortedDates.length - 1]
+                    }
+                }
+            };
+
+        } catch (error) {
+            console.error('Error processing tag evolution data:', error);
+            return { 
+                timelineData: [],
+                tags: [],
+                dates: [],
+                stats: {}
+            };
         }
     }
 
@@ -820,6 +1143,132 @@ class DataLoader {
             return false;
         }
     }
+
+    // Get tag cloud data for burst visualization
+    getTagCloudData(country = 'all') {
+        try {
+            const tagData = {};
+            const videos = country === 'all' ? 
+                Object.values(this.videoData).flat() : 
+                (this.videoData[country] || []);
+
+            videos.forEach(video => {
+                if (video && video.tags) {
+                    // Parse tags - split by | and clean quotes
+                    const tags = video.tags.split('|').map(tag => 
+                        tag.replace(/"/g, '').trim()
+                    ).filter(tag => tag.length > 2); // Filter short tags
+
+                    tags.forEach(tag => {
+                        if (!tagData[tag]) {
+                            tagData[tag] = {
+                                count: 0,
+                                totalViews: 0,
+                                totalLikes: 0,
+                                totalComments: 0,
+                                videos: []
+                            };
+                        }
+                        tagData[tag].count++;
+                        tagData[tag].totalViews += video.views || 0;
+                        tagData[tag].totalLikes += video.likes || 0;
+                        tagData[tag].totalComments += video.comment_count || 0;
+                        tagData[tag].videos.push({
+                            title: video.title,
+                            views: video.views,
+                            country: video.country,
+                            category: video.category_name
+                        });
+                    });
+                }
+            });
+
+            // Convert to array and calculate metrics
+            return Object.entries(tagData)
+                .map(([tag, data]) => ({
+                    tag,
+                    count: data.count,
+                    avgViews: data.totalViews / data.count,
+                    avgLikes: data.totalLikes / data.count,
+                    avgComments: data.totalComments / data.count,
+                    engagement: ((data.totalLikes + data.totalComments) / data.totalViews) || 0,
+                    videos: data.videos
+                }))
+                .filter(item => item.count >= 2) // Only tags appearing 2+ times
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 50); // Top 50 tags
+        } catch (error) {
+            console.error('Error processing tag cloud data:', error);
+            return [];
+        }
+    }
+
+    // Get cultural preference data by country
+    getCulturalPreferenceData() {
+        try {
+            const culturalData = {};
+            
+            // Initialize countries
+            Object.keys(this.videoData).forEach(country => {
+                culturalData[country] = {
+                    country,
+                    name: this.getCountryDisplayName(country),
+                    categories: {},
+                    totalVideos: 0,
+                    totalViews: 0,
+                    totalEngagement: 0
+                };
+            });
+
+            // Process videos by country and category
+            Object.entries(this.videoData).forEach(([country, videos]) => {
+                videos.forEach(video => {
+                    if (video && video.category_name) {
+                        const category = video.category_name;
+                        
+                        if (!culturalData[country].categories[category]) {
+                            culturalData[country].categories[category] = {
+                                count: 0,
+                                totalViews: 0,
+                                totalLikes: 0,
+                                totalDislikes: 0,
+                                totalComments: 0
+                            };
+                        }
+
+                        const cat = culturalData[country].categories[category];
+                        cat.count++;
+                        cat.totalViews += video.views || 0;
+                        cat.totalLikes += video.likes || 0;
+                        cat.totalDislikes += video.dislikes || 0;
+                        cat.totalComments += video.comment_count || 0;
+
+                        culturalData[country].totalVideos++;
+                        culturalData[country].totalViews += video.views || 0;
+                        culturalData[country].totalEngagement += 
+                            (video.likes || 0) + (video.comment_count || 0);
+                    }
+                });
+
+                // Calculate metrics for each category
+                Object.entries(culturalData[country].categories).forEach(([category, data]) => {
+                    data.avgViews = data.totalViews / data.count;
+                    data.popularity = data.count / culturalData[country].totalVideos;
+                    data.engagement = data.totalViews > 0 ? 
+                        ((data.totalLikes + data.totalComments) / data.totalViews) : 0;
+                    data.quality = data.totalDislikes > 0 ? 
+                        (data.totalLikes / (data.totalLikes + data.totalDislikes)) : 1;
+                });
+            });
+
+            return Object.values(culturalData);
+        } catch (error) {
+            console.error('Error processing cultural preference data:', error);
+            return [];
+        }
+    }
+
+
 }
 
 // Create global instance

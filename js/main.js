@@ -200,11 +200,11 @@ class YouTubeDataVisualization {
                     break;
 
                 case 'sankey':
-                    this.renderSankey(container);
+                    this.renderPublishingTiming(container);
                     break;
 
                 case 'radar':
-                    this.renderRadar(container);
+                    this.renderTagEvolutionTimeline(container);
                     break;
 
                 default:
@@ -618,71 +618,50 @@ class YouTubeDataVisualization {
         }
     }
 
-    // Render Sankey diagram
-    renderSankey(container) {
+    // Render Publishing Timing Heatmap
+    renderPublishingTiming(container) {
         try {
-            // Get current flow type
-            const flowType = document.getElementById('sankey-flow-type')?.value || 'country-category';
+            // Get publishing timing data
+            const timingData = this.dataLoader.getPublishingTimingData();
             
-            // Get Sankey data
-            const sankeyData = this.dataLoader.getSankeyData(flowType);
-            
-            this.visualizations.createSankeyDiagram(sankeyData, container);
+            this.visualizations.createPublishingTimingHeatmap(timingData, container);
         } catch (error) {
-            console.error('Error rendering Sankey:', error);
-            this.showVisualizationError(container, `Error rendering Sankey: ${error.message}`);
+            console.error('Error rendering Publishing Timing:', error);
+            this.showVisualizationError(container, `Error rendering Publishing Timing: ${error.message}`);
         }
     }
 
-    // Render Radar chart
-    renderRadar(container) {
+    // Render Tag Evolution Timeline
+    renderTagEvolutionTimeline(container) {
         try {
             // Get current filter values
-            const metricsType = document.getElementById('radar-metrics')?.value || 'engagement';
-            const countriesFilter = document.getElementById('radar-countries')?.value || 'all';
+            const viewFilter = document.getElementById('tag-view-filter')?.value || 'overview';
             
-            // Get radar data
-            const radarData = this.dataLoader.getRadarData(metricsType, countriesFilter);
+            // Get tag evolution timeline data
+            const tagData = this.dataLoader.getTagEvolutionData(viewFilter);
             
-            this.visualizations.createRadarChart(radarData, container);
+            this.visualizations.createTagEvolutionTimeline(tagData, container);
         } catch (error) {
-            console.error('Error rendering Radar:', error);
-            this.showVisualizationError(container, `Error rendering Radar: ${error.message}`);
+            console.error('Error rendering Tag Evolution Timeline:', error);
+            this.showVisualizationError(container, `Error rendering Tag Evolution Timeline: ${error.message}`);
         }
     }
 
-    // Setup Sankey event listeners
+    // Setup Publishing Timing event listeners
     setupSankeyEventListeners() {
-        const flowTypeFilter = document.getElementById('sankey-flow-type');
-        if (flowTypeFilter) {
-            flowTypeFilter.addEventListener('change', () => {
-                const container = document.querySelector('#sankey .chart-container');
-                if (container) {
-                    this.renderSankey(container);
-                }
-            });
-        }
+        // Publishing timing heatmap doesn't need filters - it shows all data
+        // This function is kept for compatibility but does nothing
     }
 
-    // Setup Radar event listeners
+    // Setup Tag Dashboard event listeners
     setupRadarEventListeners() {
-        const metricsFilter = document.getElementById('radar-metrics');
-        const countriesFilter = document.getElementById('radar-countries');
+        const viewFilter = document.getElementById('tag-view-filter');
 
-        if (metricsFilter) {
-            metricsFilter.addEventListener('change', () => {
+        if (viewFilter) {
+            viewFilter.addEventListener('change', () => {
                 const container = document.querySelector('#radar .chart-container');
                 if (container) {
-                    this.renderRadar(container);
-                }
-            });
-        }
-
-        if (countriesFilter) {
-            countriesFilter.addEventListener('change', () => {
-                const container = document.querySelector('#radar .chart-container');
-                if (container) {
-                    this.renderRadar(container);
+                    this.renderTagEvolutionTimeline(container);
                 }
             });
         }
