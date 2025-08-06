@@ -1614,6 +1614,352 @@ class Visualizations {
             .text('💡 Click channel lines to focus • Hover milestones for video details • Click legend to select channels');
     }
 
+    // 9. Publishing Timing Heatmap - When to Publish for Success
+    createPublishingTimingHeatmap(data, container) {
+        this.clearVisualization(container);
+        
+        if (!data || !data.data || data.data.length === 0) {
+            container.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; background-color: #f8f9fa; border-radius: 5px;">
+                    <div style="text-align: center; color: #6c757d;">
+                        <h4>No Timing Data Available</h4>
+                        <p>Waiting for video data to load...</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        const margin = { top: 60, right: 80, bottom: 60, left: 80 };
+        const containerRect = container.getBoundingClientRect();
+        const width = containerRect.width - margin.left - margin.right;
+        const height = containerRect.height - margin.top - margin.bottom;
+        
+        const cellWidth = width / 24; // 24 hours
+        const cellHeight = height / 7; // 7 days
+
+        const svg = d3.select(container)
+            .append('svg')
+            .attr('width', width + margin.left + margin.right)
+            .attr('height', height + margin.top + margin.bottom);
+
+        const chartGroup = svg.append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        // Color scale for success rate
+        const colorScale = d3.scaleSequential(d3.interpolateYlOrRd)
+            .domain([0, data.maxSuccess]);
+
+        // Create heatmap cells
+        const cells = chartGroup.selectAll('.timing-cell')
+            .data(data.data)
+            .enter().append('rect')
+            .attr('class', 'timing-cell')
+            .attr('x', d => d.hour * cellWidth)
+            .attr('y', d => d.day * cellHeight)
+            .attr('width', cellWidth - 1)
+            .attr('height', cellHeight - 1)
+            .attr('fill', d => d.count > 0 ? colorScale(d.successRate) : '#f0f0f0')
+            .attr('stroke', '#fff')
+            .attr('stroke-width', 1)
+            .style('cursor', 'pointer')
+            .on('mouseover', (event, d) => {
+                this.tooltip.style('opacity', .9)
+                    .html(`
+                        <strong>${d.dayName} ${d.hour}:00</strong><br/>
+                        Videos Published: ${d.count}<br/>
+                        Avg Views: ${d.avgViews.toLocaleString()}<br/>
+                        Avg Likes: ${d.avgLikes.toLocaleString()}<br/>
+                        Success Score: ${(d.successRate * 100).toFixed(1)}%
+                    `)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+            })
+            .on('mouseout', () => {
+                this.tooltip.style('opacity', 0);
+            });
+
+        // Add day labels (Y-axis)
+        chartGroup.selectAll('.day-label')
+            .data(data.days)
+            .enter().append('text')
+            .attr('class', 'day-label')
+            .attr('x', -10)
+            .attr('y', (d, i) => i * cellHeight + cellHeight/2)
+            .attr('text-anchor', 'end')
+            .attr('alignment-baseline', 'middle')
+            .style('font-size', '12px')
+            .style('font-weight', 'bold')
+            .style('fill', '#333')
+            .text(d => d.substring(0, 3)); // Mon, Tue, etc.
+
+        // Add hour labels (X-axis)
+        const hours = Array.from({length: 24}, (_, i) => i);
+        chartGroup.selectAll('.hour-label')
+            .data(hours)
+            .enter().append('text')
+            .attr('class', 'hour-label')
+            .attr('x', d => d * cellWidth + cellWidth/2)
+            .attr('y', -10)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '10px')
+            .style('fill', '#666')
+            .text(d => d % 6 === 0 ? `${d}:00` : ''); // Show every 6 hours
+
+        // Add title
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', 25)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '16px')
+            .style('font-weight', 'bold')
+            .style('fill', '#333')
+            .text('📅 Publishing Timing Heatmap');
+
+        // Add legend
+        const legendWidth = 200;
+        const legendHeight = 15;
+        const legend = svg.append('g')
+            .attr('transform', `translate(${width + margin.left - legendWidth}, ${margin.top + height + 35})`);
+
+        const legendScale = d3.scaleLinear()
+            .domain([0, data.maxSuccess])
+            .range([0, legendWidth]);
+
+        const legendAxis = d3.axisBottom(legendScale)
+            .ticks(5)
+            .tickFormat(d => `${(d * 100).toFixed(0)}%`);
+
+        // Create gradient for legend
+        const gradient = svg.append('defs')
+            .append('linearGradient')
+            .attr('id', 'timing-legend-gradient');
+
+        gradient.selectAll('stop')
+            .data(d3.range(0, 1.01, 0.1))
+            .enter().append('stop')
+            .attr('offset', d => `${d * 100}%`)
+            .attr('stop-color', d => colorScale(d * data.maxSuccess));
+
+        legend.append('rect')
+            .attr('width', legendWidth)
+            .attr('height', legendHeight)
+            .attr('fill', 'url(#timing-legend-gradient)')
+            .attr('stroke', '#333')
+            .attr('stroke-width', 1);
+
+        legend.append('g')
+            .attr('transform', `translate(0, ${legendHeight})`)
+            .call(legendAxis);
+
+        legend.append('text')
+            .attr('x', legendWidth / 2)
+            .attr('y', -5)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '12px')
+            .style('font-weight', 'bold')
+            .text('Success Rate');
+
+        // Add instructions
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', height + margin.top + margin.bottom - 10)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '11px')
+            .style('fill', '#999')
+            .text('💡 Hover cells to see publishing stats • Darker colors = better performance');
+    }
+
+    // 10. Tag Performance Network - Tag Relationships and Performance
+    createTagPerformanceNetwork(data, container) {
+        this.clearVisualization(container);
+        
+        if (!data || !data.nodes || data.nodes.length === 0) {
+            container.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; background-color: #f8f9fa; border-radius: 5px;">
+                    <div style="text-align: center; color: #6c757d;">
+                        <h4>No Tag Data Available</h4>
+                        <p>Waiting for video tag data to load...</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        const margin = { top: 40, right: 40, bottom: 60, left: 40 };
+        const containerRect = container.getBoundingClientRect();
+        const width = containerRect.width - margin.left - margin.right;
+        const height = containerRect.height - margin.top - margin.bottom;
+
+        const svg = d3.select(container)
+            .append('svg')
+            .attr('width', width + margin.left + margin.right)
+            .attr('height', height + margin.top + margin.bottom);
+
+        const chartGroup = svg.append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        // Color scale based on engagement
+        const engagementExtent = d3.extent(data.nodes, d => d.engagement);
+        const colorScale = d3.scaleSequential(d3.interpolateViridis)
+            .domain(engagementExtent);
+
+        // Size scale for nodes
+        const sizeScale = d3.scaleSqrt()
+            .domain(d3.extent(data.nodes, d => d.count))
+            .range([5, 25]);
+
+        // Create force simulation
+        const simulation = d3.forceSimulation(data.nodes)
+            .force('link', d3.forceLink(data.links).id(d => d.id).strength(0.1))
+            .force('charge', d3.forceManyBody().strength(-100))
+            .force('center', d3.forceCenter(width / 2, height / 2))
+            .force('collision', d3.forceCollide().radius(d => sizeScale(d.count) + 2));
+
+        // Create links
+        const links = chartGroup.append('g')
+            .attr('class', 'links')
+            .selectAll('line')
+            .data(data.links)
+            .enter().append('line')
+            .attr('stroke', '#999')
+            .attr('stroke-opacity', 0.3)
+            .attr('stroke-width', d => Math.sqrt(d.value) * 2);
+
+        // Create nodes
+        const nodes = chartGroup.append('g')
+            .attr('class', 'nodes')
+            .selectAll('circle')
+            .data(data.nodes)
+            .enter().append('circle')
+            .attr('r', d => sizeScale(d.count))
+            .attr('fill', d => colorScale(d.engagement))
+            .attr('stroke', '#fff')
+            .attr('stroke-width', 2)
+            .style('cursor', 'pointer')
+            .call(d3.drag()
+                .on('start', dragstarted)
+                .on('drag', dragged)
+                .on('end', dragended))
+            .on('mouseover', (event, d) => {
+                this.tooltip.style('opacity', .9)
+                    .html(`
+                        <strong>${d.label}</strong><br/>
+                        Frequency: ${d.count} videos<br/>
+                        Avg Views: ${d.avgViews.toLocaleString()}<br/>
+                        Avg Likes: ${d.avgLikes.toLocaleString()}<br/>
+                        Engagement: ${(d.engagement * 100).toFixed(2)}%<br/>
+                        Categories: ${d.categoryCount}
+                    `)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+
+                // Highlight connected nodes
+                const connectedNodes = new Set();
+                data.links.forEach(link => {
+                    if (link.source.id === d.id) connectedNodes.add(link.target.id);
+                    if (link.target.id === d.id) connectedNodes.add(link.source.id);
+                });
+
+                nodes.style('opacity', node => 
+                    node.id === d.id || connectedNodes.has(node.id) ? 1 : 0.3);
+                links.style('opacity', link => 
+                    link.source.id === d.id || link.target.id === d.id ? 0.8 : 0.1);
+            })
+            .on('mouseout', () => {
+                this.tooltip.style('opacity', 0);
+                nodes.style('opacity', 1);
+                links.style('opacity', 0.3);
+            });
+
+        // Add labels for top nodes
+        const topNodes = data.nodes.slice(0, 15); // Top 15 most frequent tags
+        const labels = chartGroup.append('g')
+            .attr('class', 'labels')
+            .selectAll('text')
+            .data(topNodes)
+            .enter().append('text')
+            .text(d => d.label.length > 12 ? d.label.substring(0, 12) + '...' : d.label)
+            .style('font-size', '10px')
+            .style('fill', '#333')
+            .style('text-anchor', 'middle')
+            .style('pointer-events', 'none');
+
+        // Update positions on simulation tick
+        simulation.on('tick', () => {
+            links
+                .attr('x1', d => d.source.x)
+                .attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x)
+                .attr('y2', d => d.target.y);
+
+            nodes
+                .attr('cx', d => Math.max(sizeScale(d.count), Math.min(width - sizeScale(d.count), d.x)))
+                .attr('cy', d => Math.max(sizeScale(d.count), Math.min(height - sizeScale(d.count), d.y)));
+
+            labels
+                .attr('x', d => d.x)
+                .attr('y', d => d.y - sizeScale(d.count) - 5);
+        });
+
+        // Drag functions
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        // Add title
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', 25)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '16px')
+            .style('font-weight', 'bold')
+            .style('fill', '#333')
+            .text('🏷️ Tag Performance Network');
+
+        // Add legend
+        const legendData = [
+            { label: 'Node Size', desc: 'Tag Frequency' },
+            { label: 'Node Color', desc: 'Engagement Rate' },
+            { label: 'Connections', desc: 'Tags Used Together' }
+        ];
+
+        const legend = svg.append('g')
+            .attr('transform', `translate(20, ${height + margin.top + 10})`);
+
+        legend.selectAll('.legend-item')
+            .data(legendData)
+            .enter().append('text')
+            .attr('class', 'legend-item')
+            .attr('x', (d, i) => i * 150)
+            .attr('y', 0)
+            .style('font-size', '11px')
+            .style('fill', '#666')
+            .text(d => `${d.label}: ${d.desc}`);
+
+        // Add stats
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', height + margin.top + margin.bottom - 10)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '11px')
+            .style('fill', '#999')
+            .text(`💡 ${data.stats.filteredTags} tags • ${data.stats.connections} connections • Drag nodes to explore • Hover for details`);
+    }
+
 }
 
 // Create global instance
