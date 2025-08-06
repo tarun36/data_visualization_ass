@@ -36,7 +36,7 @@
             <button class="nav-btn" data-viz="treemap">Channel Treemap</button>
             <button class="nav-btn" data-viz="engagement">Engagement Breakdown</button>
             <button class="nav-btn" data-viz="sankey">Publishing Timing</button>
-            <button class="nav-btn" data-viz="radar">Tag Network</button>
+            <button class="nav-btn" data-viz="radar">Channel Timeline</button>
 
         </nav>
 
@@ -155,26 +155,25 @@
                         <label style="color: #7f8c8d; font-size: 12px;">Discover the best times to publish videos for maximum success</label>
                     </div>
                 </div>
-                <div class="chart-container" style="min-height: 400px;"></div>
+                <div class="chart-container"></div>
             </div>
 
             <div id="radar" class="visualization">
-                <h2>🏷️ Tag Performance Network</h2>
+                <h2>📈 Channel Success Timeline</h2>
                 <div class="filter-controls">
                     <div class="control-group">
-                        <label for="tag-frequency-filter">Minimum Tag Frequency:</label>
-                        <select id="tag-frequency-filter">
-                            <option value="2">2+ videos</option>
-                            <option value="3" selected>3+ videos</option>
-                            <option value="5">5+ videos</option>
-                            <option value="10">10+ videos</option>
+                        <label for="radar-countries">Countries to Display:</label>
+                        <select id="radar-countries">
+                            <option value="all" selected>All Countries</option>
+                            <option value="top5">Top 5 Countries</option>
+                            <option value="top3">Top 3 Countries</option>
                         </select>
                     </div>
                     <div class="control-group">
-                        <label style="color: #7f8c8d; font-size: 12px;">Explore tag relationships and performance patterns</label>
+                        <label style="color: #7f8c8d; font-size: 12px;">Track how channels grow and achieve success over time</label>
                     </div>
                 </div>
-                <div class="chart-container" style="min-height: 500px;"></div>
+                <div class="chart-container"></div>
             </div>
 
         </main>

@@ -204,7 +204,7 @@ class YouTubeDataVisualization {
                     break;
 
                 case 'radar':
-                    this.renderTagNetwork(container);
+                    this.renderChannelSuccessTimeline(container);
                     break;
 
                 default:
@@ -631,19 +631,19 @@ class YouTubeDataVisualization {
         }
     }
 
-    // Render Tag Performance Network
-    renderTagNetwork(container) {
+    // Render Channel Success Timeline
+    renderChannelSuccessTimeline(container) {
         try {
             // Get current filter values
-            const minFrequency = parseInt(document.getElementById('tag-frequency-filter')?.value) || 3;
+            const countriesFilter = document.getElementById('radar-countries')?.value || 'all';
             
-            // Get tag network data
-            const tagNetworkData = this.dataLoader.getTagNetworkData(minFrequency);
+            // Get channel timeline data
+            const channelTimelineData = this.dataLoader.getChannelTimelineData(countriesFilter, 10000);
             
-            this.visualizations.createTagPerformanceNetwork(tagNetworkData, container);
+            this.visualizations.createChannelSuccessTimeline(channelTimelineData, container);
         } catch (error) {
-            console.error('Error rendering Tag Network:', error);
-            this.showVisualizationError(container, `Error rendering Tag Network: ${error.message}`);
+            console.error('Error rendering Channel Success Timeline:', error);
+            this.showVisualizationError(container, `Error rendering Channel Success Timeline: ${error.message}`);
         }
     }
 
@@ -653,15 +653,15 @@ class YouTubeDataVisualization {
         // This function is kept for compatibility but does nothing
     }
 
-    // Setup Tag Network event listeners
+    // Setup Radar event listeners
     setupRadarEventListeners() {
-        const frequencyFilter = document.getElementById('tag-frequency-filter');
+        const countriesFilter = document.getElementById('radar-countries');
 
-        if (frequencyFilter) {
-            frequencyFilter.addEventListener('change', () => {
+        if (countriesFilter) {
+            countriesFilter.addEventListener('change', () => {
                 const container = document.querySelector('#radar .chart-container');
                 if (container) {
-                    this.renderTagNetwork(container);
+                    this.renderChannelSuccessTimeline(container);
                 }
             });
         }
