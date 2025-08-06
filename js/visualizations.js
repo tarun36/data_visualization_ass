@@ -1983,59 +1983,136 @@ class Visualizations {
             .attr('transform', (d, i) => `translate(0, ${i * 20})`)
             .style('cursor', 'pointer')
             .on('click', function(event, d) {
-                const isInactive = d3.select(this).classed('inactive');
-                d3.select(this).classed('inactive', !isInactive);
+                const legendItem = d3.select(this);
+                const isInactive = legendItem.classed('inactive');
+                legendItem.classed('inactive', !isInactive);
                 
                 const tagIndex = data.timelineData.indexOf(d);
                 const line = chartGroup.selectAll('.tag-line').filter((lineData, i) => i === tagIndex);
                 const points = line.selectAll('.data-point');
                 
                 if (isInactive) {
-                    // Reactivate - restore full visibility
+                    // REACTIVATE - Show the line
                     line.select('path')
                         .style('opacity', 0.8)
                         .style('stroke-width', 2.5);
                     points.style('opacity', 1);
-                    d3.select(this).style('opacity', 1);
-                    // Remove any special highlighting
-                    d3.select(this).select('.legend-background').style('fill', 'none');
+                    
+                    // Update legend visuals - ACTIVE STATE
+                    legendItem.select('.legend-background')
+                        .style('fill', 'none')
+                        .style('stroke', 'none');
+                    
+                    legendItem.select('.legend-line')
+                        .style('opacity', 1)
+                        .attr('stroke-width', 4);
+                    
+                    legendItem.select('.legend-text')
+                        .style('fill', '#333')
+                        .style('font-weight', 'bold');
+                    
+                    legendItem.select('.legend-status')
+                        .attr('fill', '#4CAF50')
+                        .attr('stroke', '#2E7D32');
+                        
                 } else {
-                    // Deactivate - dim but don't hide completely
+                    // DEACTIVATE - Hide the line
                     line.select('path')
-                        .style('opacity', 0.15)
-                        .style('stroke-width', 1.5);
-                    points.style('opacity', 0.2);
-                    d3.select(this).style('opacity', 0.4);
-                    // Add background highlight to show it's selected for hiding
-                    d3.select(this).select('.legend-background').style('fill', '#f0f0f0');
+                        .style('opacity', 0.1)
+                        .style('stroke-width', 1);
+                    points.style('opacity', 0.1);
+                    
+                    // Update legend visuals - INACTIVE STATE
+                    legendItem.select('.legend-background')
+                        .style('fill', '#ffebee')
+                        .style('stroke', '#f44336')
+                        .style('stroke-width', 1);
+                    
+                    legendItem.select('.legend-line')
+                        .style('opacity', 0.3)
+                        .attr('stroke-width', 2);
+                    
+                    legendItem.select('.legend-text')
+                        .style('fill', '#999')
+                        .style('font-weight', 'normal');
+                    
+                    legendItem.select('.legend-status')
+                        .attr('fill', '#f44336')
+                        .attr('stroke', '#d32f2f');
                 }
             })
             .on('mouseover', function(event, d) {
-                if (!d3.select(this).classed('inactive')) {
+                const legendItem = d3.select(this);
+                const isInactive = legendItem.classed('inactive');
+                
+                if (!isInactive) {
+                    // Highlight active items on hover
                     const tagIndex = data.timelineData.indexOf(d);
                     const line = chartGroup.selectAll('.tag-line').filter((lineData, i) => i === tagIndex);
-                    // Temporarily highlight on hover
-                    line.select('path').style('stroke-width', 4);
-                    d3.select(this).select('.legend-background').style('fill', '#e8f4ff');
+                    
+                    // Make line thicker and more prominent
+                    line.select('path').style('stroke-width', 5);
+                    
+                    // Highlight legend with blue background
+                    legendItem.select('.legend-background')
+                        .style('fill', '#e3f2fd')
+                        .style('stroke', '#2196F3')
+                        .style('stroke-width', 2);
+                        
+                    legendItem.select('.legend-line')
+                        .attr('stroke-width', 5);
+                } else {
+                    // For inactive items, show that they can be reactivated
+                    legendItem.select('.legend-background')
+                        .style('fill', '#f3e5f5')
+                        .style('stroke', '#9C27B0');
                 }
             })
             .on('mouseout', function(event, d) {
-                if (!d3.select(this).classed('inactive')) {
-                    const tagIndex = data.timelineData.indexOf(d);
-                    const line = chartGroup.selectAll('.tag-line').filter((lineData, i) => i === tagIndex);
-                    // Restore normal thickness
+                const legendItem = d3.select(this);
+                const isInactive = legendItem.classed('inactive');
+                const tagIndex = data.timelineData.indexOf(d);
+                const line = chartGroup.selectAll('.tag-line').filter((lineData, i) => i === tagIndex);
+                
+                if (!isInactive) {
+                    // Restore normal state for active items
                     line.select('path').style('stroke-width', 2.5);
-                    d3.select(this).select('.legend-background').style('fill', 'none');
+                    legendItem.select('.legend-background')
+                        .style('fill', 'none')
+                        .style('stroke', 'none');
+                    legendItem.select('.legend-line')
+                        .attr('stroke-width', 4);
+                } else {
+                    // Restore inactive state
+                    legendItem.select('.legend-background')
+                        .style('fill', '#ffebee')
+                        .style('stroke', '#f44336');
                 }
             });
 
+        // Add background rectangles for better click interaction
+        legendItems.append('rect')
+            .attr('class', 'legend-background')
+            .attr('x', -5)
+            .attr('y', -10)
+            .attr('width', 125)
+            .attr('height', 18)
+            .attr('fill', 'none')
+            .attr('stroke', 'none')
+            .attr('rx', 4);
+
+        // Add colored lines that match chart lines
         legendItems.append('line')
+            .attr('class', 'legend-line')
             .attr('x1', 0)
             .attr('x2', 15)
             .attr('y1', 0)
             .attr('y2', 0)
-            .attr('stroke', (d, i) => colorScale(i))
-            .attr('stroke-width', 3);
+            .attr('stroke', (d, i) => {
+                const originalIndex = data.timelineData.indexOf(d);
+                return colorScale(originalIndex);
+            })
+            .attr('stroke-width', 4);
 
         // Legend title
         legend.append('text')
@@ -2044,15 +2121,39 @@ class Visualizations {
             .style('font-size', '12px')
             .style('font-weight', 'bold')
             .style('fill', '#333')
-            .text('Tags:');
+            .text('📝 Tags (Click to toggle):');
 
+        // Legend instructions
+        legend.append('text')
+            .attr('x', 0)
+            .attr('y', legendData.length * 20 + (data.timelineData.length > legendData.length ? 35 : 20))
+            .style('font-size', '10px')
+            .style('fill', '#666')
+            .style('font-style', 'italic')
+            .text('🔵 Active • 🔴 Hidden • Hover for preview');
+
+        // Add tag text with better styling
         legendItems.append('text')
+            .attr('class', 'legend-text')
             .attr('x', 20)
             .attr('y', 0)
             .attr('dy', '0.35em')
-            .style('font-size', '11px')
+            .style('font-size', '12px')
+            .style('font-weight', 'bold')
             .style('fill', '#333')
-            .text(d => d.tag.length > 12 ? d.tag.substring(0, 12) + '...' : d.tag);
+            .style('pointer-events', 'none')
+            .text(d => d.tag.length > 10 ? d.tag.substring(0, 10) + '...' : d.tag);
+
+        // Add status indicator (active/inactive)
+        legendItems.append('circle')
+            .attr('class', 'legend-status')
+            .attr('cx', 110)
+            .attr('cy', 0)
+            .attr('r', 4)
+            .attr('fill', '#4CAF50')
+            .attr('stroke', '#2E7D32')
+            .attr('stroke-width', 1)
+            .style('opacity', 1);
 
         // Add note if some tags are hidden
         if (data.timelineData.length > legendData.length) {
