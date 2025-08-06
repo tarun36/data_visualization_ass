@@ -1023,6 +1023,177 @@ class DataLoader {
             return [];
         }
     }
+
+    // Get publishing timing data for heatmap (day vs hour analysis)
+    getPublishingTimingData() {
+        try {
+            const timingData = {};
+            const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            
+            // Initialize grid: day x hour
+            for (let day = 0; day < 7; day++) {
+                timingData[day] = {};
+                for (let hour = 0; hour < 24; hour++) {
+                    timingData[day][hour] = {
+                        count: 0,
+                        totalViews: 0,
+                        totalLikes: 0,
+                        totalComments: 0,
+                        videos: []
+                    };
+                }
+            }
+            
+            // Process all videos
+            Object.values(this.videoData).flat().forEach(video => {
+                if (video && video.publish_time) {
+                    const publishDate = new Date(video.publish_time);
+                    const day = publishDate.getDay(); // 0-6 (Sun-Sat)
+                    const hour = publishDate.getHours(); // 0-23
+                    
+                    const slot = timingData[day][hour];
+                    slot.count++;
+                    slot.totalViews += video.views || 0;
+                    slot.totalLikes += video.likes || 0;
+                    slot.totalComments += video.comment_count || 0;
+                    slot.videos.push({
+                        title: video.title,
+                        views: video.views,
+                        country: video.country
+                    });
+                }
+            });
+            
+            // Convert to array format for visualization
+            const heatmapArray = [];
+            for (let day = 0; day < 7; day++) {
+                for (let hour = 0; hour < 24; hour++) {
+                    const slot = timingData[day][hour];
+                    heatmapArray.push({
+                        day: day,
+                        dayName: daysOfWeek[day],
+                        hour: hour,
+                        count: slot.count,
+                        avgViews: slot.count > 0 ? slot.totalViews / slot.count : 0,
+                        avgLikes: slot.count > 0 ? slot.totalLikes / slot.count : 0,
+                        avgComments: slot.count > 0 ? slot.totalComments / slot.count : 0,
+                        totalViews: slot.totalViews,
+                        successRate: slot.count > 0 ? (slot.totalViews / slot.count) / 1000000 : 0, // Normalized success
+                        videos: slot.videos
+                    });
+                }
+            }
+            
+            return {
+                data: heatmapArray,
+                days: daysOfWeek,
+                maxSuccess: Math.max(...heatmapArray.map(d => d.successRate))
+            };
+            
+        } catch (error) {
+            console.error('Error processing publishing timing data:', error);
+            return { data: [], days: [], maxSuccess: 0 };
+        }
+    }
+
+    // Get tag network data for performance analysis
+    getTagNetworkData(minTagFreq = 3) {
+        try {
+            const tagData = {};
+            const tagCooccurrence = {};
+            
+            // Step 1: Extract and count tags
+            Object.values(this.videoData).flat().forEach(video => {
+                if (video && video.tags) {
+                    // Parse tags - split by | and clean quotes
+                    const tags = video.tags.split('|')
+                        .map(tag => tag.replace(/"/g, '').trim())
+                        .filter(tag => tag.length > 2 && tag.length < 30) // Filter reasonable tags
+                        .slice(0, 10); // Limit to first 10 tags per video
+                    
+                    // Count individual tags
+                    tags.forEach(tag => {
+                        if (!tagData[tag]) {
+                            tagData[tag] = {
+                                count: 0,
+                                totalViews: 0,
+                                totalLikes: 0,
+                                totalComments: 0,
+                                categories: new Set()
+                            };
+                        }
+                        tagData[tag].count++;
+                        tagData[tag].totalViews += video.views || 0;
+                        tagData[tag].totalLikes += video.likes || 0;
+                        tagData[tag].totalComments += video.comment_count || 0;
+                        tagData[tag].categories.add(video.category_name);
+                    });
+                    
+                    // Count tag co-occurrences (for network connections)
+                    for (let i = 0; i < tags.length; i++) {
+                        for (let j = i + 1; j < tags.length; j++) {
+                            const tag1 = tags[i];
+                            const tag2 = tags[j];
+                            const pair = [tag1, tag2].sort().join('|||'); // Consistent ordering
+                            
+                            if (!tagCooccurrence[pair]) {
+                                tagCooccurrence[pair] = 0;
+                            }
+                            tagCooccurrence[pair]++;
+                        }
+                    }
+                }
+            });
+            
+            // Step 2: Filter tags by minimum frequency
+            const popularTags = Object.entries(tagData)
+                .filter(([tag, data]) => data.count >= minTagFreq)
+                .slice(0, 50) // Limit to top 50 for performance
+                .map(([tag, data]) => ({
+                    id: tag,
+                    label: tag,
+                    count: data.count,
+                    avgViews: data.totalViews / data.count,
+                    avgLikes: data.totalLikes / data.count,
+                    avgComments: data.totalComments / data.count,
+                    engagement: ((data.totalLikes + data.totalComments) / data.totalViews) || 0,
+                    categoryCount: data.categories.size,
+                    size: Math.log(data.count + 1) * 10 // Logarithmic sizing
+                }));
+            
+            const tagIds = new Set(popularTags.map(t => t.id));
+            
+            // Step 3: Create network links (connections between tags)
+            const links = Object.entries(tagCooccurrence)
+                .map(([pair, count]) => {
+                    const [tag1, tag2] = pair.split('|||');
+                    return {
+                        source: tag1,
+                        target: tag2,
+                        value: count,
+                        strength: count
+                    };
+                })
+                .filter(link => tagIds.has(link.source) && tagIds.has(link.target))
+                .filter(link => link.value >= 2) // Only strong connections
+                .sort((a, b) => b.value - a.value)
+                .slice(0, 100); // Limit connections for performance
+            
+            return {
+                nodes: popularTags,
+                links: links,
+                stats: {
+                    totalTags: Object.keys(tagData).length,
+                    filteredTags: popularTags.length,
+                    connections: links.length
+                }
+            };
+            
+        } catch (error) {
+            console.error('Error processing tag network data:', error);
+            return { nodes: [], links: [], stats: {} };
+        }
+    }
 }
 
 // Create global instance
