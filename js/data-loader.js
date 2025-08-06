@@ -58,18 +58,12 @@ class DataLoader {
 
     // Parse CSV data
     parseCSV(text, country) {
-        // Check if this is a Git LFS pointer file
-        if (text.includes('version https://git-lfs.github.com/spec/v1')) {
-            console.warn(`CSV file for ${country} is a Git LFS pointer. Generating fallback data.`);
-            return this.generateFallbackData(country);
-        }
-        
         const lines = text.trim().split('\n');
         
-        // Additional check for empty or malformed CSV
+        // Check for empty or malformed CSV
         if (lines.length < 2) {
-            console.warn(`CSV file for ${country} appears to be empty or malformed. Generating fallback data.`);
-            return this.generateFallbackData(country);
+            console.warn(`CSV file for ${country} appears to be empty or malformed.`);
+            return [];
         }
         
         const headers = lines[0].split(',');
@@ -109,38 +103,10 @@ class DataLoader {
             }
         }
         
-        return data.length > 0 ? data : this.generateFallbackData(country);
+        return data;
     }
 
-    // Generate fallback data when real data is not available
-    generateFallbackData(country) {
-        const categories = ['Music', 'Entertainment', 'Gaming', 'News & Politics', 'Sports', 'Science & Technology'];
-        const fallbackData = [];
-        
-        // Generate 50 sample videos per country
-        for (let i = 0; i < 50; i++) {
-            const categoryId = Math.floor(Math.random() * 6) + 1;
-            const categoryName = categories[categoryId - 1];
-            
-            fallbackData.push({
-                video_id: `${country}_video_${i}`,
-                title: `Sample Video ${i + 1}`,
-                channel_title: `Channel ${Math.floor(Math.random() * 20) + 1}`,
-                category_id: categoryId,
-                category_name: categoryName,
-                views: Math.floor(Math.random() * 1000000) + 10000,
-                likes: Math.floor(Math.random() * 50000) + 1000,
-                dislikes: Math.floor(Math.random() * 5000) + 100,
-                comment_count: Math.floor(Math.random() * 10000) + 500,
-                country: country,
-                trending_date: '17.14.11',
-                trending_date_parsed: new Date(2017, 13, 11)
-            });
-        }
-        
-        console.log(`Generated ${fallbackData.length} fallback records for ${country}`);
-        return fallbackData;
-    }
+
 
     // Parse CSV line handling quoted fields
     parseCSVLine(line) {
