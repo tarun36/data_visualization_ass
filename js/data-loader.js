@@ -941,33 +941,43 @@ class DataLoader {
                     categories.add(category);
                     
                     // Parse tags - split by | and clean quotes, filter out "none" and similar
-                    const videoTags = video.tags.split('|')
-                        .map(tag => tag.replace(/"/g, '').trim().toLowerCase())
-                        .filter(tag => {
-                            // Filter out empty, too short/long, and "none" variations
-                            if (!tag || tag.length <= 2 || tag.length >= 30) return false;
-                            
-                            // Filter out various "none" patterns
-                            const nonePatterns = [
-                                'none', 'n/a', 'na', 'null', 'undefined', 
-                                'no tag', 'no tags', 'notag', 'notags',
-                                'empty', 'blank', '-', '_', '.'
-                            ];
-                            
-                            // Check if tag exactly matches any none pattern
-                            if (nonePatterns.includes(tag)) return false;
-                            
-                            // Check if tag contains "none" as a word (not part of another word)
-                            if (tag.includes('none') && (
-                                tag === 'none' || 
-                                tag.startsWith('none ') || 
-                                tag.endsWith(' none') || 
-                                tag.includes(' none ')
-                            )) return false;
-                            
-                            return true;
-                        })
-                        .slice(0, 8); // Limit to first 8 tags per video
+                    const rawTags = video.tags.split('|').map(tag => tag.replace(/"/g, '').trim().toLowerCase());
+                    const videoTags = rawTags.filter(tag => {
+                        // Filter out empty, too short/long, and "none" variations
+                        if (!tag || tag.length <= 2 || tag.length >= 30) return false;
+                        
+                        // Filter out various "none" patterns including [none] format
+                        const nonePatterns = [
+                            'none', '[none]', 'n/a', 'na', 'null', 'undefined', 
+                            'no tag', 'no tags', 'notag', 'notags',
+                            'empty', 'blank', '-', '_', '.', 
+                            '[n/a]', '[na]', '[null]', '[empty]', '[blank]'
+                        ];
+                        
+                        // Check if tag exactly matches any none pattern
+                        if (nonePatterns.includes(tag)) {
+                            if (tag === '[none]') {
+                                console.log('Filtered out [none] tag from video:', video.title?.substring(0, 50));
+                            }
+                            return false;
+                        }
+                        
+                        // Check for bracketed none variations like [none], [n/a], etc.
+                        if (tag.startsWith('[') && tag.endsWith(']')) {
+                            const innerTag = tag.slice(1, -1); // Remove brackets
+                            if (nonePatterns.includes(innerTag)) return false;
+                        }
+                        
+                        // Check if tag contains "none" as a word (not part of another word)
+                        if (tag.includes('none') && (
+                            tag === 'none' || 
+                            tag.startsWith('none ') || 
+                            tag.endsWith(' none') || 
+                            tag.includes(' none ')
+                        )) return false;
+                        
+                        return true;
+                    }).slice(0, 8); // Limit to first 8 tags per video
 
                     videoTags.forEach(tag => {
                         tags.add(tag);
@@ -1024,6 +1034,7 @@ class DataLoader {
 
             console.log(`Tag Matrix: ${significantTags.length} tags × ${sortedCategories.length} categories`);
             console.log('Sample filtered tags:', significantTags.slice(0, 10));
+            console.log('Total unique tags found before filtering:', Object.keys(tagCategoryMatrix).length);
             
             return {
                 matrixData,
