@@ -882,29 +882,61 @@ class DataLoader {
                 }
             });
             
-            // Convert to array format for visualization
+            // Calculate overall statistics for proper success rate calculation
+            let totalViews = 0;
+            let totalVideos = 0;
+            const allSlots = [];
+            
+            for (let day = 0; day < 7; day++) {
+                for (let hour = 0; hour < 24; hour++) {
+                    const slot = timingData[day][hour];
+                    if (slot.count > 0) {
+                        totalViews += slot.totalViews;
+                        totalVideos += slot.count;
+                        allSlots.push(slot);
+                    }
+                }
+            }
+            
+            const overallAvgViews = totalVideos > 0 ? totalViews / totalVideos : 0;
+            
+            // Convert to array format for visualization with proper success rate
             const heatmapArray = [];
             for (let day = 0; day < 7; day++) {
                 for (let hour = 0; hour < 24; hour++) {
                     const slot = timingData[day][hour];
+                    const avgViews = slot.count > 0 ? slot.totalViews / slot.count : 0;
+                    
+                    // Calculate success rate as percentage relative to overall average
+                    // Cap at 100% for logical interpretation
+                    let successRate = 0;
+                    if (slot.count > 0 && overallAvgViews > 0) {
+                        successRate = Math.min(100, (avgViews / overallAvgViews) * 100);
+                    }
+                    
                     heatmapArray.push({
                         day: day,
                         dayName: daysOfWeek[day],
                         hour: hour,
                         count: slot.count,
-                        avgViews: slot.count > 0 ? slot.totalViews / slot.count : 0,
+                        avgViews: avgViews,
                         avgLikes: slot.count > 0 ? slot.totalLikes / slot.count : 0,
                         avgComments: slot.count > 0 ? slot.totalComments / slot.count : 0,
                         totalViews: slot.totalViews,
-                        successRate: slot.count > 0 ? (slot.totalViews / slot.count) / 1000000 : 0, // Normalized success
+                        successRate: successRate, // Now properly capped at 100%
                         videos: slot.videos
                     });
                 }
             }
             
-            // Calculate max success rate safely
+            // Max success rate is now always 100 or less
             const successRates = heatmapArray.map(d => d.successRate).filter(rate => !isNaN(rate) && isFinite(rate));
-            const maxSuccess = successRates.length > 0 ? Math.max(...successRates) : 1;
+            const maxSuccess = successRates.length > 0 ? Math.max(...successRates) : 100;
+            
+            console.log(`Publishing Timing Stats:`);
+            console.log(`- Overall average views: ${overallAvgViews.toLocaleString()}`);
+            console.log(`- Max success rate: ${maxSuccess.toFixed(1)}%`);
+            console.log(`- Success rates range: ${Math.min(...successRates).toFixed(1)}% - ${Math.max(...successRates).toFixed(1)}%`);
             
             return {
                 data: heatmapArray,

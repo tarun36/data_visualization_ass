@@ -1646,9 +1646,9 @@ class Visualizations {
         const chartGroup = svg.append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
 
-        // Color scale for success rate
+        // Color scale for success rate (0-100%)
         const colorScale = d3.scaleSequential(d3.interpolateYlOrRd)
-            .domain([0, data.maxSuccess]);
+            .domain([0, 100]);
 
         // Create heatmap cells
         const cells = chartGroup.selectAll('.timing-cell')
@@ -1670,7 +1670,7 @@ class Visualizations {
                         Videos Published: ${d.count}<br/>
                         Avg Views: ${d.avgViews.toLocaleString()}<br/>
                         Avg Likes: ${d.avgLikes.toLocaleString()}<br/>
-                        Success Score: ${(d.successRate * 100).toFixed(1)}%
+                        Success Score: ${d.successRate.toFixed(1)}%
                     `)
                     .style('left', (event.pageX + 10) + 'px')
                     .style('top', (event.pageY - 28) + 'px');
@@ -1723,12 +1723,12 @@ class Visualizations {
             .attr('transform', `translate(${width + margin.left - legendWidth}, ${margin.top + height + 25})`);
 
         const legendScale = d3.scaleLinear()
-            .domain([0, data.maxSuccess])
+            .domain([0, 100])
             .range([0, legendWidth]);
 
         const legendAxis = d3.axisBottom(legendScale)
             .ticks(5)
-            .tickFormat(d => `${(d * 100).toFixed(0)}%`);
+            .tickFormat(d => `${d.toFixed(0)}%`);
 
         // Create gradient for legend
         const gradient = svg.append('defs')
@@ -1739,7 +1739,7 @@ class Visualizations {
             .data(d3.range(0, 1.01, 0.1))
             .enter().append('stop')
             .attr('offset', d => `${d * 100}%`)
-            .attr('stop-color', d => colorScale(d * data.maxSuccess));
+            .attr('stop-color', d => colorScale(d * 100));
 
         legend.append('rect')
             .attr('width', legendWidth)
