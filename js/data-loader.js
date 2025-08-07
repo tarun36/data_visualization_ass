@@ -1174,5 +1174,3 @@ class DataLoader {
     }
 }
 
-// Create global instance
-window.dataLoader = new DataLoader();

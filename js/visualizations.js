@@ -2433,6 +2433,3 @@ class Visualizations {
             .text(`📊 ${data.stats.totalTags} tags tracked • ${data.stats.totalDates} days • Total usage: ${data.stats.totalUsage} • Click legend to toggle`);
     }
 }
-
-// Create global instance for export functions
-window.visualizations = new Visualizations();

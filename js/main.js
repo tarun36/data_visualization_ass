@@ -2,8 +2,8 @@
 class YouTubeDataVisualization {
     constructor() {
         this.currentVisualization = 'overview';
-        this.dataLoader = window.dataLoader;
-        this.visualizations = window.visualizations;
+        this.dataLoader = new DataLoader();
+        this.visualizations = new Visualizations();
         this.isDataLoaded = false;
     }
 
