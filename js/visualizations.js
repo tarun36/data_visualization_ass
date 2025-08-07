@@ -1680,11 +1680,11 @@ class Visualizations {
             
             let margin;
             if (isMobile) {
-                margin = { top: 40, right: 100, bottom: 60, left: 100 };
+                margin = { top: 50, right: 110, bottom: 70, left: 110 };
             } else if (isTablet) {
-                margin = { top: 50, right: 130, bottom: 70, left: 130 };
+                margin = { top: 60, right: 140, bottom: 80, left: 140 };
             } else {
-                margin = { top: 60, right: 150, bottom: 80, left: 150 };
+                margin = { top: 70, right: 160, bottom: 90, left: 160 };
             }
             
             const width = Math.max(isMobile ? 500 : 700, containerRect.width - 40) - margin.left - margin.right;

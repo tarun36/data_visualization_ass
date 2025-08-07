@@ -755,41 +755,45 @@ class YouTubeDataVisualization {
         const flowCountrySelect = document.getElementById('flow-country-filter');
         const timingCountrySelect = document.getElementById('timing-country-filter');
         
+        // Legacy dropdowns that need fixing
+        const categoryCountrySelect = document.getElementById('country-filter');
+        const timelineCountrySelect = document.getElementById('timeline-country-filter');
+        const scatterCountrySelect = document.getElementById('scatter-country-filter');
+        const treemapCountrySelect = document.getElementById('treemap-country-filter');
+        const engagementCountrySelect = document.getElementById('engagement-country-filter');
+        
         if (this.dataLoader) {
             const countries = this.dataLoader.getAvailableCountries();
             
-            // Populate Tag Racing dropdown
-            if (tagCountrySelect) {
-                tagCountrySelect.innerHTML = '<option value="global" selected>🌍 Global (All Countries)</option>';
-                countries.slice(1).forEach(country => {
-                    const option = document.createElement('option');
-                    option.value = country.code;
-                    option.textContent = country.name;
-                    tagCountrySelect.appendChild(option);
-                });
-            }
+            // Function to populate a dropdown with proper country data
+            const populateDropdown = (selectElement, includeAll = true) => {
+                if (selectElement) {
+                    if (includeAll) {
+                        selectElement.innerHTML = '<option value="all" selected>All Countries</option>';
+                    } else {
+                        selectElement.innerHTML = '<option value="global" selected>🌍 Global (All Countries)</option>';
+                    }
+                    
+                    countries.slice(1).forEach(country => {
+                        const option = document.createElement('option');
+                        option.value = country.code;
+                        option.textContent = country.name;
+                        selectElement.appendChild(option);
+                    });
+                }
+            };
             
-            // Populate Tag Flow dropdown
-            if (flowCountrySelect) {
-                flowCountrySelect.innerHTML = '<option value="global" selected>🌍 Global (All Countries)</option>';
-                countries.slice(1).forEach(country => {
-                    const option = document.createElement('option');
-                    option.value = country.code;
-                    option.textContent = country.name;
-                    flowCountrySelect.appendChild(option);
-                });
-            }
+            // Populate new chart dropdowns (use 'global' value)
+            populateDropdown(tagCountrySelect, false);
+            populateDropdown(flowCountrySelect, false);
+            populateDropdown(timingCountrySelect, false);
             
-            // Populate Publishing Timing dropdown
-            if (timingCountrySelect) {
-                timingCountrySelect.innerHTML = '<option value="global" selected>🌍 Global (All Countries)</option>';
-                countries.slice(1).forEach(country => {
-                    const option = document.createElement('option');
-                    option.value = country.code;
-                    option.textContent = country.name;
-                    timingCountrySelect.appendChild(option);
-                });
-            }
+            // Populate legacy chart dropdowns (use 'all' value for compatibility)
+            populateDropdown(categoryCountrySelect, true);
+            populateDropdown(timelineCountrySelect, true);
+            populateDropdown(scatterCountrySelect, true);
+            populateDropdown(treemapCountrySelect, true);
+            populateDropdown(engagementCountrySelect, true);
             
             console.log(`Populated country dropdowns with ${countries.length} options`);
         }
