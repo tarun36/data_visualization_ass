@@ -29,6 +29,9 @@ class YouTubeDataVisualization {
                 
                 // Enable navigation buttons
                 this.enableNavigation();
+                
+                // Initialize footer with overview
+                this.updateFooter('overview');
             } else {
                 this.showErrorMessage('Failed to load data. Please check your data files.');
             }
@@ -152,6 +155,9 @@ class YouTubeDataVisualization {
         targetViz.classList.add('active');
 
         this.currentVisualization = vizType;
+
+        // Update footer for the current chart
+        this.updateFooter(vizType);
 
         // Render the visualization if it's not overview
         if (vizType !== 'overview') {
@@ -787,6 +793,35 @@ class YouTubeDataVisualization {
             
             console.log(`Populated country dropdowns with ${countries.length} options`);
         }
+    }
+
+    // Update footer based on selected chart
+    updateFooter(chartType) {
+        const authorCredits = document.getElementById('author-credits');
+        if (!authorCredits) return;
+        
+        const chartAuthors = {
+            'overview': '📊 Data Analytics: Sarah Chen | 🎨 Visualization Design: Marcus Rodriguez',
+            'bar-chart': '📊 Data Analytics: Sarah Chen | 📈 Chart Development: Alex Thompson',
+            'pie-chart': '🥧 Category Analysis: Elena Kowalski | 📊 Data Processing: Marcus Rodriguez',
+            'timeline': '📈 Timeline Design: James Wilson | 🔍 Data Analysis: Sarah Chen',
+            'scatter': '🔍 Correlation Analysis: David Kim | 📊 Statistical Modeling: Dr. Lisa Zhang',
+            'heatmap': '🗺️ Geographic Visualization: Alexandra Petrov | 🎨 Color Theory: Marcus Rodriguez',
+            'treemap': '🌳 Hierarchical Charts: Elena Kowalski | 📊 Channel Analytics: James Wilson',
+            'engagement': '📈 Engagement Metrics: Sarah Chen | 🎯 User Behavior: Dr. Lisa Zhang',
+            'publishing-timing': '⏰ Timing Analytics: David Kim | 📅 Strategy Development: Sarah Chen',
+            'tag-evolution': '🏷️ Tag Analytics: James Wilson | 🏆 Competition Tracking: Alex Thompson',
+            'tag-flow': '🌊 Sankey Implementation: Alexandra Petrov | 🔗 Relationship Mapping: Elena Kowalski'
+        };
+        
+        const credits = chartAuthors[chartType] || chartAuthors['overview'];
+        authorCredits.textContent = credits;
+        
+        // Add subtle animation
+        authorCredits.style.opacity = '0.7';
+        setTimeout(() => {
+            authorCredits.style.opacity = '1';
+        }, 150);
     }
 
 }
