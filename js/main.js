@@ -626,51 +626,25 @@ class YouTubeDataVisualization {
         }
     }
 
-    // Render Tag Analysis Chart (supports multiple chart types)
+    // Render Tag Racing Competition
     renderTagEvolution(container) {
         try {
             // Get current filter values
-            const chartType = document.getElementById('tag-chart-type')?.value || 'racing-bars';
             const viewFilter = document.getElementById('tag-view-filter')?.value || 'overview';
             
-            let tagData;
+            // Get racing data for the competition
+            const tagData = this.dataLoader.getTagRacingData(viewFilter);
             
-            // Get appropriate data based on chart type
-            switch (chartType) {
-                case 'racing-bars':
-                    tagData = this.dataLoader.getTagRacingData(viewFilter);
-                    break;
-                case 'momentum-chart':
-                    tagData = this.dataLoader.getTagMomentumData(viewFilter);
-                    break;
-                case 'flow-diagram':
-                    tagData = this.dataLoader.getTagFlowData(viewFilter);
-                    break;
-                default:
-                    tagData = this.dataLoader.getTagRacingData(viewFilter);
-            }
-            
-            this.visualizations.createTagAnalysisChart(tagData, container, chartType);
+            this.visualizations.createTagAnalysisChart(tagData, container, 'racing-bars');
         } catch (error) {
-            console.error('Error rendering Tag Analysis Chart:', error);
-            this.showVisualizationError(container, `Error rendering Tag Analysis Chart: ${error.message}`);
+            console.error('Error rendering Tag Racing Competition:', error);
+            this.showVisualizationError(container, `Error rendering Tag Racing Competition: ${error.message}`);
         }
     }
 
-    // Setup tag analysis event listeners
+    // Setup tag racing competition event listeners
     setupTagEvolutionEventListeners() {
-        const chartTypeFilter = document.getElementById('tag-chart-type');
         const viewFilter = document.getElementById('tag-view-filter');
-        
-        // Chart type change handler
-        if (chartTypeFilter) {
-            chartTypeFilter.addEventListener('change', () => {
-                const container = document.querySelector('#tag-evolution .chart-container');
-                if (container) {
-                    this.renderTagEvolution(container);
-                }
-            });
-        }
         
         // View filter change handler  
         if (viewFilter) {
