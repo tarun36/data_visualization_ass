@@ -708,12 +708,24 @@ class YouTubeDataVisualization {
                 if (selectElement) {
                     selectElement.innerHTML = '<option value="all" selected>All Countries</option>';
                     
-                    countries.slice(1).forEach(country => {
-                        const option = document.createElement('option');
-                        option.value = country.code;
-                        option.textContent = country.name;
-                        selectElement.appendChild(option);
-                    });
+                    // Handle both old string format and new object format
+                    if (countries.length > 0 && typeof countries[0] === 'string') {
+                        // Old string format
+                        countries.forEach(countryCode => {
+                            const option = document.createElement('option');
+                            option.value = countryCode;
+                            option.textContent = this.getCountryDisplayName(countryCode);
+                            selectElement.appendChild(option);
+                        });
+                    } else {
+                        // New object format (skip global option for legacy charts)
+                        countries.slice(1).forEach(country => {
+                            const option = document.createElement('option');
+                            option.value = country.code;
+                            option.textContent = country.name;
+                            selectElement.appendChild(option);
+                        });
+                    }
                 }
             };
             
