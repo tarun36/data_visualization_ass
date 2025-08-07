@@ -1688,7 +1688,7 @@ class Visualizations {
             }
             
             const width = Math.max(isMobile ? 500 : 700, containerRect.width - 40) - margin.left - margin.right;
-            const height = Math.max(isMobile ? 400 : 500, Math.min(650, (containerRect.height || 700) - 40)) - margin.top - margin.bottom;
+            const height = Math.max(isMobile ? 450 : 550, Math.min(750, (containerRect.height || 800) - 40)) - margin.top - margin.bottom;
 
             // Create SVG with proper spacing
             const svg = d3.select(container)

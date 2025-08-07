@@ -110,11 +110,10 @@ class YouTubeDataVisualization {
             button.style.opacity = '1';
         });
         
-        // Populate country filter dropdowns
-        this.populateCountryFilter();
-        this.populateTimelineCountryFilter();
-        this.populateScatterCountryFilter();
-        this.populateTreemapCountryFilter();
+        // Populate country filter dropdowns for legacy charts
+        this.populateCountryDropdownLegacy();
+        
+        // Populate engagement category filter
         this.populateEngagementFilters();
 
         // Re-render current visualization if it's the map
@@ -235,25 +234,7 @@ class YouTubeDataVisualization {
         }
     }
 
-    // Populate country filter dropdown
-    populateCountryFilter() {
-        const countryFilter = document.getElementById('country-filter');
-        if (!countryFilter || !this.isDataLoaded) return;
 
-        // Clear existing options except "All Countries"
-        const allOption = countryFilter.querySelector('option[value="all"]');
-        countryFilter.innerHTML = '';
-        countryFilter.appendChild(allOption);
-
-        // Add country options
-        const countries = this.dataLoader.getAvailableCountriesLegacy();
-        countries.forEach(country => {
-            const option = document.createElement('option');
-            option.value = country;
-            option.textContent = this.getCountryDisplayName(country);
-            countryFilter.appendChild(option);
-        });
-    }
 
     // Get display name for country code
     getCountryDisplayName(countryCode) {
@@ -286,25 +267,7 @@ class YouTubeDataVisualization {
         }
     }
 
-    // Populate timeline country filter dropdown
-    populateTimelineCountryFilter() {
-        const timelineCountryFilter = document.getElementById('timeline-country-filter');
-        if (!timelineCountryFilter || !this.isDataLoaded) return;
 
-        // Clear existing options except "All Countries"
-        const allOption = timelineCountryFilter.querySelector('option[value="all"]');
-        timelineCountryFilter.innerHTML = '';
-        timelineCountryFilter.appendChild(allOption);
-
-        // Add country options
-        const countries = this.dataLoader.getAvailableCountriesLegacy();
-        countries.forEach(country => {
-            const option = document.createElement('option');
-            option.value = country;
-            option.textContent = this.getCountryDisplayName(country);
-            timelineCountryFilter.appendChild(option);
-        });
-    }
 
     // Update timeline based on selected country
     updateTimelineByCountry(country) {
@@ -320,25 +283,7 @@ class YouTubeDataVisualization {
         }
     }
 
-    // Populate scatter country filter dropdown
-    populateScatterCountryFilter() {
-        const scatterCountryFilter = document.getElementById('scatter-country-filter');
-        if (!scatterCountryFilter || !this.isDataLoaded) return;
 
-        // Clear existing options except "All Countries"
-        const allOption = scatterCountryFilter.querySelector('option[value="all"]');
-        scatterCountryFilter.innerHTML = '';
-        scatterCountryFilter.appendChild(allOption);
-
-        // Add country options
-        const countries = this.dataLoader.getAvailableCountriesLegacy();
-        countries.forEach(country => {
-            const option = document.createElement('option');
-            option.value = country;
-            option.textContent = this.getCountryDisplayName(country);
-            scatterCountryFilter.appendChild(option);
-        });
-    }
 
     // Update scatter plot based on selected country
     updateScatterByCountry(country) {
@@ -507,25 +452,7 @@ class YouTubeDataVisualization {
         }
     }
 
-    // Populate treemap country filter dropdown
-    populateTreemapCountryFilter() {
-        const treemapCountryFilter = document.getElementById('treemap-country-filter');
-        if (!treemapCountryFilter || !this.isDataLoaded) return;
 
-        // Clear existing options except "All Countries"
-        const allOption = treemapCountryFilter.querySelector('option[value="all"]');
-        treemapCountryFilter.innerHTML = '';
-        treemapCountryFilter.appendChild(allOption);
-
-        // Add country options
-        const countries = this.dataLoader.getAvailableCountriesLegacy();
-        countries.forEach(country => {
-            const option = document.createElement('option');
-            option.value = country;
-            option.textContent = this.getCountryDisplayName(country);
-            treemapCountryFilter.appendChild(option);
-        });
-    }
 
     // Setup treemap event listeners
     setupTreemapEventListeners() {
@@ -571,24 +498,8 @@ class YouTubeDataVisualization {
         }
     }
 
-    // Populate engagement filter dropdowns
+    // Populate engagement category filter only (country handled by populateCountryDropdownLegacy)
     populateEngagementFilters() {
-        // Populate country filter
-        const countryFilter = document.getElementById('engagement-country-filter');
-        if (countryFilter && this.isDataLoaded) {
-            const allOption = countryFilter.querySelector('option[value="all"]');
-            countryFilter.innerHTML = '';
-            countryFilter.appendChild(allOption);
-
-            const countries = this.dataLoader.getAvailableCountriesLegacy();
-            countries.forEach(country => {
-                const option = document.createElement('option');
-                option.value = country;
-                option.textContent = this.getCountryDisplayName(country);
-                countryFilter.appendChild(option);
-            });
-        }
-
         // Populate category filter
         const categoryFilter = document.getElementById('engagement-category-filter');
         if (categoryFilter && this.isDataLoaded) {
@@ -749,30 +660,19 @@ class YouTubeDataVisualization {
         }
     }
 
-    // Populate country dropdown for all charts
+    // Populate country dropdown for new charts only (legacy charts use their own functions)
     populateCountryDropdown() {
         const tagCountrySelect = document.getElementById('tag-country-filter');
         const flowCountrySelect = document.getElementById('flow-country-filter');
         const timingCountrySelect = document.getElementById('timing-country-filter');
         
-        // Legacy dropdowns that need fixing
-        const categoryCountrySelect = document.getElementById('country-filter');
-        const timelineCountrySelect = document.getElementById('timeline-country-filter');
-        const scatterCountrySelect = document.getElementById('scatter-country-filter');
-        const treemapCountrySelect = document.getElementById('treemap-country-filter');
-        const engagementCountrySelect = document.getElementById('engagement-country-filter');
-        
         if (this.dataLoader) {
             const countries = this.dataLoader.getAvailableCountries();
             
             // Function to populate a dropdown with proper country data
-            const populateDropdown = (selectElement, includeAll = true) => {
+            const populateDropdown = (selectElement) => {
                 if (selectElement) {
-                    if (includeAll) {
-                        selectElement.innerHTML = '<option value="all" selected>All Countries</option>';
-                    } else {
-                        selectElement.innerHTML = '<option value="global" selected>🌍 Global (All Countries)</option>';
-                    }
+                    selectElement.innerHTML = '<option value="global" selected>🌍 Global (All Countries)</option>';
                     
                     countries.slice(1).forEach(country => {
                         const option = document.createElement('option');
@@ -784,18 +684,47 @@ class YouTubeDataVisualization {
             };
             
             // Populate new chart dropdowns (use 'global' value)
-            populateDropdown(tagCountrySelect, false);
-            populateDropdown(flowCountrySelect, false);
-            populateDropdown(timingCountrySelect, false);
+            populateDropdown(tagCountrySelect);
+            populateDropdown(flowCountrySelect);
+            populateDropdown(timingCountrySelect);
+            
+            console.log(`Populated new chart dropdowns with ${countries.length} options`);
+        }
+    }
+
+    // Populate country dropdown for legacy charts using proper structure
+    populateCountryDropdownLegacy() {
+        const categoryCountrySelect = document.getElementById('country-filter');
+        const timelineCountrySelect = document.getElementById('timeline-country-filter');
+        const scatterCountrySelect = document.getElementById('scatter-country-filter');
+        const treemapCountrySelect = document.getElementById('treemap-country-filter');
+        const engagementCountrySelect = document.getElementById('engagement-country-filter');
+        
+        if (this.dataLoader) {
+            const countries = this.dataLoader.getAvailableCountries();
+            
+            // Function to populate a dropdown with proper country data
+            const populateDropdown = (selectElement) => {
+                if (selectElement) {
+                    selectElement.innerHTML = '<option value="all" selected>All Countries</option>';
+                    
+                    countries.slice(1).forEach(country => {
+                        const option = document.createElement('option');
+                        option.value = country.code;
+                        option.textContent = country.name;
+                        selectElement.appendChild(option);
+                    });
+                }
+            };
             
             // Populate legacy chart dropdowns (use 'all' value for compatibility)
-            populateDropdown(categoryCountrySelect, true);
-            populateDropdown(timelineCountrySelect, true);
-            populateDropdown(scatterCountrySelect, true);
-            populateDropdown(treemapCountrySelect, true);
-            populateDropdown(engagementCountrySelect, true);
+            populateDropdown(categoryCountrySelect);
+            populateDropdown(timelineCountrySelect);
+            populateDropdown(scatterCountrySelect);
+            populateDropdown(treemapCountrySelect);
+            populateDropdown(engagementCountrySelect);
             
-            console.log(`Populated country dropdowns with ${countries.length} options`);
+            console.log(`Populated legacy chart dropdowns with ${countries.length} options`);
         }
     }
 
