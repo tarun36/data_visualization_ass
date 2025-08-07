@@ -24,8 +24,9 @@
             <button class="nav-btn" data-viz="heatmap">Country Heatmap</button>
             <button class="nav-btn" data-viz="treemap">Channel Treemap</button>
             <button class="nav-btn" data-viz="engagement">Engagement Breakdown</button>
-            <button class="nav-btn" data-viz="publishing-timing">📅 Publishing Strategy</button>
-            <button class="nav-btn" data-viz="tag-evolution">🏷️ Tag Trends</button>
+                            <button class="nav-btn" data-viz="publishing-timing">📅 Publishing Strategy</button>
+                <button class="nav-btn" data-viz="tag-evolution">🏷️ Tag Trends</button>
+                <button class="nav-btn" data-viz="tag-flow">🌊 Tag Flow</button>
 
         </nav>
 
@@ -190,6 +191,35 @@
                     </div>
                 </div>
                 <div class="chart-container" style="min-height: 500px;"></div>
+            </div>
+
+            <div id="tag-flow" class="visualization">
+                <h2>🌊 Tag Flow Diagram</h2>
+                <div class="chart-description">
+                    <p><strong>Purpose:</strong> Discover which tags work best for specific content categories by country. See the flow of tags from creators to categories.</p>
+                    <p><strong>How to Read:</strong> Tags (left) flow to Categories (right). Thicker flows = stronger connections. Hover for detailed insights about tag-category relationships.</p>
+                </div>
+                <div class="filter-controls">
+                    <div class="control-group">
+                        <label for="flow-country-filter">Country:</label>
+                        <select id="flow-country-filter">
+                            <option value="global" selected>🌍 Global (All Countries)</option>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="flow-detail-filter">Detail Level:</label>
+                        <select id="flow-detail-filter">
+                            <option value="focused">🎯 Focused View (12 tags, 6 categories)</option>
+                            <option value="balanced" selected>⚖️ Balanced View (15 tags, 7 categories)</option>
+                            <option value="detailed">🔍 Detailed View (20 tags, 8 categories)</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label style="color: #7f8c8d; font-size: 12px;">🌊 <strong>Tip:</strong> Find perfect tag-category combinations for your content!</label>
+                    </div>
+                </div>
+                <div class="chart-container" style="min-height: 600px;"></div>
             </div>
 
         </main>

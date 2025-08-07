@@ -1842,5 +1842,307 @@ class Visualizations {
             .text('🏆 Hover bars or tag names for details • Navigate periods to see winners • Auto-play for the full race');
     }
 
+    // Create Tag Flow Diagram (Sankey) - shows tag-category relationships
+    createTagFlowDiagram(data, container, chartType = 'sankey') {
+        try {
+            // Clear container with fade effect
+            d3.select(container).selectAll('*').remove();
+
+            // Set up responsive dimensions
+            const containerRect = container.getBoundingClientRect();
+            const margin = { top: 20, right: 60, bottom: 40, left: 60 };
+            const width = Math.max(800, containerRect.width) - margin.left - margin.right;
+            const height = Math.max(500, Math.min(700, containerRect.height || 600)) - margin.top - margin.bottom;
+
+            // Create SVG with proper spacing
+            const svg = d3.select(container)
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .style('background', '#fafafa')
+                .style('border-radius', '8px')
+                .style('box-shadow', '0 2px 8px rgba(0,0,0,0.1)');
+
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            // Check if we have data
+            if (!data.nodes || data.nodes.length === 0 || !data.links || data.links.length === 0) {
+                g.append('text')
+                    .attr('x', width / 2)
+                    .attr('y', height / 2)
+                    .attr('text-anchor', 'middle')
+                    .style('font-size', '16px')
+                    .style('fill', '#7f8c8d')
+                    .text(`No tag-category connections found for ${data.countryName || 'selected region'}`);
+                return;
+            }
+
+            // Create Sankey generator with optimal spacing
+            const sankey = d3.sankey()
+                .nodeWidth(25)
+                .nodePadding(15)
+                .extent([[0, 0], [width, height]])
+                .nodeAlign(d3.sankeyLeft)
+                .nodeSort((a, b) => {
+                    // Sort tags by usage, categories by name
+                    if (a.type === 'tag' && b.type === 'tag') {
+                        return b.count - a.count;
+                    }
+                    if (a.type === 'category' && b.type === 'category') {
+                        return a.name.localeCompare(b.name);
+                    }
+                    return a.type === 'tag' ? -1 : 1;
+                });
+
+            // Generate the Sankey layout
+            const {nodes, links} = sankey({
+                nodes: data.nodes.map(d => ({...d})),
+                links: data.links.map(d => ({...d}))
+            });
+
+            // Define colors with good contrast
+            const tagColor = '#3498db';
+            const categoryColors = {
+                'Gaming': '#27ae60',
+                'Entertainment': '#9b59b6', 
+                'Music': '#f39c12',
+                'Education': '#e74c3c',
+                'Comedy': '#e67e22',
+                'Sports': '#1abc9c',
+                'News & Politics': '#34495e',
+                'Science & Technology': '#2c3e50',
+                'Film & Animation': '#8e44ad',
+                'People & Blogs': '#95a5a6'
+            };
+
+            // Create tooltip with enhanced styling
+            const tooltip = d3.select('body').append('div')
+                .attr('class', 'sankey-tooltip')
+                .style('position', 'absolute')
+                .style('background', 'rgba(0, 0, 0, 0.9)')
+                .style('color', 'white')
+                .style('padding', '12px 16px')
+                .style('border-radius', '8px')
+                .style('font-size', '13px')
+                .style('font-family', 'system-ui, -apple-system, sans-serif')
+                .style('box-shadow', '0 4px 12px rgba(0,0,0,0.3)')
+                .style('backdrop-filter', 'blur(4px)')
+                .style('z-index', '10000')
+                .style('max-width', '300px')
+                .style('line-height', '1.4')
+                .style('opacity', 0)
+                .style('pointer-events', 'none');
+
+            // Create gradient definitions
+            const defs = svg.append('defs');
+            
+            // Add links with gradients
+            const link = g.append('g')
+                .selectAll('.sankey-link')
+                .data(links)
+                .enter().append('path')
+                .attr('class', 'sankey-link')
+                .attr('d', d3.sankeyLinkHorizontal())
+                .style('fill', 'none')
+                .style('stroke-opacity', 0.4)
+                .style('stroke-width', d => Math.max(2, d.width))
+                .style('stroke', d => {
+                    // Create gradient from tag color to category color
+                    const sourceColor = tagColor;
+                    const targetColor = categoryColors[d.category] || '#95a5a6';
+                    
+                    const gradientId = `gradient-${d.source.index}-${d.target.index}`;
+                    const gradient = defs.append('linearGradient')
+                        .attr('id', gradientId)
+                        .attr('gradientUnits', 'userSpaceOnUse')
+                        .attr('x1', d.source.x1).attr('y1', d.source.y0 + (d.source.y1 - d.source.y0) / 2)
+                        .attr('x2', d.target.x0).attr('y2', d.target.y0 + (d.target.y1 - d.target.y0) / 2);
+                    
+                    gradient.append('stop')
+                        .attr('offset', '0%')
+                        .attr('stop-color', sourceColor)
+                        .attr('stop-opacity', 0.6);
+                    
+                    gradient.append('stop')
+                        .attr('offset', '100%')
+                        .attr('stop-color', targetColor)
+                        .attr('stop-opacity', 0.6);
+                    
+                    return `url(#${gradientId})`;
+                })
+                .style('cursor', 'pointer')
+                .on('mouseover', function(event, d) {
+                    // Highlight this link
+                    d3.select(this)
+                        .style('stroke-opacity', 0.8)
+                        .style('stroke-width', d.width + 2);
+                    
+                    // Dim other links
+                    link.filter(other => other !== d)
+                        .style('stroke-opacity', 0.1);
+                    
+                    // Show tooltip
+                    tooltip.style('opacity', 1)
+                        .html(`
+                            <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 8px; margin-bottom: 8px;">
+                                <strong style="color: #3498db;">#${d.tag}</strong> → <strong style="color: ${categoryColors[d.category] || '#95a5a6'};">${d.category}</strong>
+                            </div>
+                            <div style="font-size: 12px; color: #ecf0f1;">
+                                <div><strong>Connection Strength:</strong> ${d.value} videos</div>
+                                <div><strong>Total Views:</strong> ${d.totalViews.toLocaleString()}</div>
+                                <div><strong>Avg Views:</strong> ${d.avgViews.toLocaleString()}</div>
+                                <div><strong>Avg Likes:</strong> ${d.avgLikes.toLocaleString()}</div>
+                            </div>
+                            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.2); font-size: 11px; color: #bdc3c7;">
+                                💡 This tag appears in ${d.value} ${d.category} videos
+                            </div>
+                        `)
+                        .style('left', (event.pageX + 15) + 'px')
+                        .style('top', (event.pageY - 10) + 'px');
+                })
+                .on('mouseout', function(event, d) {
+                    // Reset all links
+                    link.style('stroke-opacity', 0.4)
+                        .style('stroke-width', d => Math.max(2, d.width));
+                    
+                    // Hide tooltip
+                    tooltip.style('opacity', 0);
+                });
+
+            // Add nodes with proper spacing and colors
+            const node = g.append('g')
+                .selectAll('.sankey-node')
+                .data(nodes)
+                .enter().append('g')
+                .attr('class', 'sankey-node')
+                .attr('transform', d => `translate(${d.x0},${d.y0})`);
+
+            // Add node rectangles
+            node.append('rect')
+                .attr('height', d => Math.max(4, d.y1 - d.y0))
+                .attr('width', 25)
+                .style('fill', d => {
+                    if (d.type === 'tag') return tagColor;
+                    return categoryColors[d.name] || '#95a5a6';
+                })
+                .style('stroke', 'white')
+                .style('stroke-width', 1)
+                .style('cursor', 'pointer')
+                .style('rx', 3)
+                .on('mouseover', function(event, d) {
+                    // Highlight connected links
+                    link.style('stroke-opacity', linkData => {
+                        return (linkData.source === d || linkData.target === d) ? 0.8 : 0.1;
+                    });
+                    
+                    // Show node tooltip
+                    tooltip.style('opacity', 1)
+                        .html(`
+                            <div style="border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 8px; margin-bottom: 8px;">
+                                <strong style="color: ${d.type === 'tag' ? '#3498db' : (categoryColors[d.name] || '#95a5a6')};">
+                                    ${d.type === 'tag' ? '#' : '📂'} ${d.name}
+                                </strong>
+                            </div>
+                            <div style="font-size: 12px; color: #ecf0f1;">
+                                <div><strong>Total Videos:</strong> ${d.count.toLocaleString()}</div>
+                                <div><strong>Total Views:</strong> ${d.totalViews.toLocaleString()}</div>
+                                <div><strong>Avg Views:</strong> ${d.avgViews.toLocaleString()}</div>
+                                <div><strong>Connections:</strong> ${d.type === 'tag' ? d.categories : d.tags} ${d.type === 'tag' ? 'categories' : 'tags'}</div>
+                            </div>
+                            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.2); font-size: 11px; color: #bdc3c7;">
+                                ${d.type === 'tag' ? '🏷️ Tag used across multiple categories' : '📂 Category with diverse tag usage'}
+                            </div>
+                        `)
+                        .style('left', (event.pageX + 15) + 'px')
+                        .style('top', (event.pageY - 10) + 'px');
+                })
+                .on('mouseout', function() {
+                    // Reset all links
+                    link.style('stroke-opacity', 0.4);
+                    // Hide tooltip
+                    tooltip.style('opacity', 0);
+                });
+
+            // Add node labels with smart positioning
+            node.append('text')
+                .attr('x', d => d.type === 'tag' ? -6 : 31)
+                .attr('y', d => (d.y1 - d.y0) / 2)
+                .attr('dy', '0.35em')
+                .attr('text-anchor', d => d.type === 'tag' ? 'end' : 'start')
+                .style('font-family', 'system-ui, -apple-system, sans-serif')
+                .style('font-size', '12px')
+                .style('font-weight', '500')
+                .style('fill', '#2c3e50')
+                .style('user-select', 'none')
+                .text(d => {
+                    // Truncate long names
+                    const maxLength = 12;
+                    return d.name.length > maxLength ? d.name.substring(0, maxLength) + '...' : d.name;
+                })
+                .append('title')
+                .text(d => d.name);
+
+            // Add section headers with clean styling
+            g.append('text')
+                .attr('x', -10)
+                .attr('y', -5)
+                .attr('text-anchor', 'middle')
+                .style('font-family', 'system-ui, -apple-system, sans-serif')
+                .style('font-size', '14px')
+                .style('font-weight', '600')
+                .style('fill', '#2c3e50')
+                .text('🏷️ TAGS');
+
+            g.append('text')
+                .attr('x', width + 10)
+                .attr('y', -5)
+                .attr('text-anchor', 'middle')
+                .style('font-family', 'system-ui, -apple-system, sans-serif')
+                .style('font-size', '14px')
+                .style('font-weight', '600')
+                .style('fill', '#2c3e50')
+                .text('📂 CATEGORIES');
+
+            // Add stats summary at the bottom
+            const statsY = height + 25;
+            g.append('text')
+                .attr('x', width / 2)
+                .attr('y', statsY)
+                .attr('text-anchor', 'middle')
+                .style('font-family', 'system-ui, -apple-system, sans-serif')
+                .style('font-size', '11px')
+                .style('fill', '#7f8c8d')
+                .text(`${data.stats.totalTags} tags • ${data.stats.totalCategories} categories • ${data.stats.totalFlows} connections • ${data.countryName} data`);
+
+            // Clean up tooltip on container removal
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    mutation.removedNodes.forEach((node) => {
+                        if (node.contains && node.contains(container)) {
+                            tooltip.remove();
+                            observer.disconnect();
+                        }
+                    });
+                });
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+
+        } catch (error) {
+            console.error('Error creating Sankey diagram:', error);
+            d3.select(container).selectAll('*').remove();
+            d3.select(container)
+                .append('div')
+                .style('text-align', 'center')
+                .style('color', '#e74c3c')
+                .style('padding', '40px')
+                .style('font-family', 'system-ui, -apple-system, sans-serif')
+                .html(`
+                    <h3>⚠️ Visualization Error</h3>
+                    <p>Unable to render Tag Flow Diagram</p>
+                    <small>${error.message}</small>
+                `);
+        }
+    }
 
 }

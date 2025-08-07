@@ -964,6 +964,192 @@ class DataLoader {
         return countryNames[code] || `🏳️ ${code}`;
     }
 
+    // Get tag flow data for Sankey diagram - shows tag-category relationships
+    getTagFlowData(selectedCountry = 'global', filterType = 'balanced') {
+        try {
+            // Determine data source based on country selection
+            let videosToProcess;
+            if (selectedCountry === 'global') {
+                videosToProcess = Object.values(this.videoData).flat();
+            } else {
+                videosToProcess = this.videoData[selectedCountry] || [];
+            }
+
+            const tagCategoryPairs = {};
+            const tagStats = {};
+            const categoryStats = {};
+
+            // Process videos to build tag-category relationships
+            videosToProcess.forEach(video => {
+                if (video && video.tags && video.category_name) {
+                    const category = video.category_name.trim();
+                    const views = parseInt(video.views) || 0;
+                    const likes = parseInt(video.likes) || 0;
+
+                    // Parse and filter tags
+                    const rawTags = video.tags.split('|').map(tag => tag.replace(/"/g, '').trim().toLowerCase());
+                    const videoTags = rawTags.filter(tag => {
+                        if (!tag || tag.length <= 2 || tag.length >= 25) return false;
+                        const nonePatterns = ['none', '[none]', 'n/a', 'na', 'null', 'undefined', 'no tag', 'no tags', 'notag', 'notags', 'empty', 'blank', '-', '_', '.', '[n/a]', '[na]', '[null]', '[empty]', '[blank]'];
+                        if (nonePatterns.includes(tag)) return false;
+                        if (tag.startsWith('[') && tag.endsWith(']')) {
+                            const innerTag = tag.slice(1, -1);
+                            if (nonePatterns.includes(innerTag)) return false;
+                        }
+                        return true;
+                    });
+
+                    // Track tag-category relationships
+                    videoTags.forEach(tag => {
+                        const pairKey = `${tag}→${category}`;
+                        
+                        if (!tagCategoryPairs[pairKey]) {
+                            tagCategoryPairs[pairKey] = {
+                                tag: tag,
+                                category: category,
+                                count: 0,
+                                totalViews: 0,
+                                totalLikes: 0
+                            };
+                        }
+
+                        tagCategoryPairs[pairKey].count++;
+                        tagCategoryPairs[pairKey].totalViews += views;
+                        tagCategoryPairs[pairKey].totalLikes += likes;
+
+                        // Track tag statistics
+                        if (!tagStats[tag]) {
+                            tagStats[tag] = { count: 0, totalViews: 0, categories: new Set() };
+                        }
+                        tagStats[tag].count++;
+                        tagStats[tag].totalViews += views;
+                        tagStats[tag].categories.add(category);
+
+                        // Track category statistics
+                        if (!categoryStats[category]) {
+                            categoryStats[category] = { count: 0, totalViews: 0, tags: new Set() };
+                        }
+                        categoryStats[category].count++;
+                        categoryStats[category].totalViews += views;
+                        categoryStats[category].tags.add(tag);
+                    });
+                }
+            });
+
+            // Filter and limit based on filterType
+            let minFlowValue, tagLimit, categoryLimit;
+            switch (filterType) {
+                case 'focused':
+                    minFlowValue = 8;
+                    tagLimit = 12;
+                    categoryLimit = 6;
+                    break;
+                case 'detailed':
+                    minFlowValue = 3;
+                    tagLimit = 20;
+                    categoryLimit = 8;
+                    break;
+                case 'balanced':
+                default:
+                    minFlowValue = 5;
+                    tagLimit = 15;
+                    categoryLimit = 7;
+            }
+
+            // Get top tags and categories
+            const topTags = Object.entries(tagStats)
+                .sort((a, b) => b[1].count - a[1].count)
+                .slice(0, tagLimit)
+                .map(([tag]) => tag);
+
+            const topCategories = Object.entries(categoryStats)
+                .sort((a, b) => b[1].count - a[1].count)
+                .slice(0, categoryLimit)
+                .map(([category]) => category);
+
+            // Filter relationships
+            const significantFlows = Object.values(tagCategoryPairs)
+                .filter(pair => 
+                    pair.count >= minFlowValue &&
+                    topTags.includes(pair.tag) &&
+                    topCategories.includes(pair.category)
+                );
+
+            // Build nodes and links for Sankey
+            const nodes = [];
+            const links = [];
+            const nodeIndex = {};
+
+            // Add tag nodes
+            topTags.forEach((tag, index) => {
+                const tagInfo = tagStats[tag];
+                nodes.push({
+                    id: `tag_${index}`,
+                    name: tag,
+                    type: 'tag',
+                    count: tagInfo.count,
+                    totalViews: tagInfo.totalViews,
+                    avgViews: Math.round(tagInfo.totalViews / tagInfo.count),
+                    categories: tagInfo.categories.size
+                });
+                nodeIndex[`tag_${tag}`] = index;
+            });
+
+            // Add category nodes
+            topCategories.forEach((category, index) => {
+                const categoryInfo = categoryStats[category];
+                const nodeId = topTags.length + index;
+                nodes.push({
+                    id: `category_${index}`,
+                    name: category,
+                    type: 'category',
+                    count: categoryInfo.count,
+                    totalViews: categoryInfo.totalViews,
+                    avgViews: Math.round(categoryInfo.totalViews / categoryInfo.count),
+                    tags: categoryInfo.tags.size
+                });
+                nodeIndex[`category_${category}`] = nodeId;
+            });
+
+            // Add links
+            significantFlows.forEach(flow => {
+                const sourceIndex = nodeIndex[`tag_${flow.tag}`];
+                const targetIndex = nodeIndex[`category_${flow.category}`];
+                
+                if (sourceIndex !== undefined && targetIndex !== undefined) {
+                    links.push({
+                        source: sourceIndex,
+                        target: targetIndex,
+                        value: flow.count,
+                        tag: flow.tag,
+                        category: flow.category,
+                        totalViews: flow.totalViews,
+                        totalLikes: flow.totalLikes,
+                        avgViews: Math.round(flow.totalViews / flow.count),
+                        avgLikes: Math.round(flow.totalLikes / flow.count)
+                    });
+                }
+            });
+
+            return {
+                nodes: nodes,
+                links: links,
+                selectedCountry: selectedCountry,
+                countryName: selectedCountry === 'global' ? 'Global' : this.getCountryName(selectedCountry),
+                stats: {
+                    totalTags: topTags.length,
+                    totalCategories: topCategories.length,
+                    totalFlows: links.length,
+                    minFlowValue: minFlowValue
+                }
+            };
+
+        } catch (error) {
+            console.error('Error processing tag flow data:', error);
+            return { nodes: [], links: [], selectedCountry: selectedCountry, countryName: 'Error', stats: {} };
+        }
+    }
+
     // Initialize all data loading
     async init(countriesToLoad = ['US', 'CA', 'GB', 'DE', 'FR', 'IN', 'JP', 'KR', 'MX', 'RU']) {
         try {

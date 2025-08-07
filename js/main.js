@@ -95,6 +95,7 @@ class YouTubeDataVisualization {
         
         // Setup new chart event listeners
         this.setupTagEvolutionEventListeners();
+        this.setupTagFlowEventListeners();
     }
 
     // Enable/disable navigation
@@ -204,9 +205,12 @@ class YouTubeDataVisualization {
                     this.renderPublishingTiming(container);
                     break;
 
-                case 'tag-evolution':
-                    this.renderTagEvolution(container);
-                    break;
+                            case 'tag-evolution':
+                this.renderTagEvolution(container);
+                break;
+            case 'tag-flow':
+                this.renderTagFlow(container);
+                break;
 
                 default:
                     console.warn(`Unknown visualization type: ${vizType}`);
@@ -651,6 +655,23 @@ class YouTubeDataVisualization {
         }
     }
 
+    // Render Tag Flow Diagram
+    renderTagFlow(container) {
+        try {
+            // Get current filter values
+            const countryFilter = document.getElementById('flow-country-filter')?.value || 'global';
+            const detailFilter = document.getElementById('flow-detail-filter')?.value || 'balanced';
+            
+            // Get flow data for the Sankey diagram
+            const flowData = this.dataLoader.getTagFlowData(countryFilter, detailFilter);
+            
+            this.visualizations.createTagFlowDiagram(flowData, container, 'sankey');
+        } catch (error) {
+            console.error('Error rendering Tag Flow Diagram:', error);
+            this.showVisualizationError(container, `Error rendering Tag Flow Diagram: ${error.message}`);
+        }
+    }
+
     // Setup tag racing competition event listeners
     setupTagEvolutionEventListeners() {
         const countryFilter = document.getElementById('tag-country-filter');
@@ -677,24 +698,63 @@ class YouTubeDataVisualization {
         }
     }
 
-    // Populate country dropdown for tag racing
+    // Setup tag flow diagram event listeners
+    setupTagFlowEventListeners() {
+        const countryFilter = document.getElementById('flow-country-filter');
+        const detailFilter = document.getElementById('flow-detail-filter');
+        
+        // Country filter change handler
+        if (countryFilter) {
+            countryFilter.addEventListener('change', () => {
+                const container = document.querySelector('#tag-flow .chart-container');
+                if (container) {
+                    this.renderTagFlow(container);
+                }
+            });
+        }
+        
+        // Detail filter change handler  
+        if (detailFilter) {
+            detailFilter.addEventListener('change', () => {
+                const container = document.querySelector('#tag-flow .chart-container');
+                if (container) {
+                    this.renderTagFlow(container);
+                }
+            });
+        }
+    }
+
+    // Populate country dropdown for tag charts
     populateCountryDropdown() {
-        const countrySelect = document.getElementById('tag-country-filter');
-        if (countrySelect && this.dataLoader) {
+        const tagCountrySelect = document.getElementById('tag-country-filter');
+        const flowCountrySelect = document.getElementById('flow-country-filter');
+        
+        if (this.dataLoader) {
             const countries = this.dataLoader.getAvailableCountries();
             
-            // Clear existing options except the first one (Global)
-            countrySelect.innerHTML = '<option value="global" selected>🌍 Global (All Countries)</option>';
+            // Populate Tag Racing dropdown
+            if (tagCountrySelect) {
+                tagCountrySelect.innerHTML = '<option value="global" selected>🌍 Global (All Countries)</option>';
+                countries.slice(1).forEach(country => {
+                    const option = document.createElement('option');
+                    option.value = country.code;
+                    option.textContent = country.name;
+                    tagCountrySelect.appendChild(option);
+                });
+            }
             
-            // Add country options
-            countries.slice(1).forEach(country => {
-                const option = document.createElement('option');
-                option.value = country.code;
-                option.textContent = country.name;
-                countrySelect.appendChild(option);
-            });
+            // Populate Tag Flow dropdown
+            if (flowCountrySelect) {
+                flowCountrySelect.innerHTML = '<option value="global" selected>🌍 Global (All Countries)</option>';
+                countries.slice(1).forEach(country => {
+                    const option = document.createElement('option');
+                    option.value = country.code;
+                    option.textContent = country.name;
+                    flowCountrySelect.appendChild(option);
+                });
+            }
             
-            console.log(`Populated country dropdown with ${countries.length} options`);
+            console.log(`Populated country dropdowns with ${countries.length} options`);
         }
     }
 
