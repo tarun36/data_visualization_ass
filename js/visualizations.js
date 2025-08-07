@@ -22,7 +22,7 @@ class Visualizations {
     createBarChart(data, container) {
         this.clearVisualization(container);
         
-        const margin = { top: 20, right: 30, bottom: 40, left: 80 };
+        const margin = { top: 20, right: 120, bottom: 40, left: 80 };
         const containerRect = container.getBoundingClientRect();
         const width = containerRect.width - margin.left - margin.right;
         const height = containerRect.height - margin.top - margin.bottom;
@@ -32,14 +32,18 @@ class Visualizations {
             .attr('width', width + margin.left + margin.right)
             .attr('height', height + margin.top + margin.bottom);
 
+        // Create main chart group
         const g = svg.append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        // Add export controls - positioned above the chart
+        this.addExportControls(container, svg, 'top');
 
         // Prepare data
         const countries = Object.keys(data);
         const maxViews = d3.max(countries, d => data[d].avgViews);
 
-        // Scales
+        // Create scales
         const xScale = d3.scaleLinear()
             .domain([0, maxViews])
             .range([0, width]);
@@ -49,17 +53,56 @@ class Visualizations {
             .range([0, height])
             .padding(0.1);
 
+        // Create zoom behavior
+        const zoom = d3.zoom()
+            .scaleExtent([0.5, 5])
+            .on('zoom', (event) => {
+                const { transform } = event;
+                
+                // Update scales with zoom transform
+                const newXScale = transform.rescaleX(xScale);
+                const newYScale = transform.rescaleY(yScale);
+                
+                // Update axes
+                g.select('.x-axis').call(d3.axisBottom(newXScale).tickFormat(d3.format('.2s')));
+                g.select('.y-axis').call(d3.axisLeft(newYScale));
+                
+                // Update bars
+                g.selectAll('.bar')
+                    .attr('x', 0)
+                    .attr('y', d => newYScale(d))
+                    .attr('width', d => newXScale(data[d].avgViews))
+                    .attr('height', newYScale.bandwidth());
+                
+                // Update value labels
+                g.selectAll('.value-label')
+                    .attr('x', d => newXScale(data[d].avgViews) + 5)
+                    .attr('y', d => newYScale(d) + newYScale.bandwidth() / 2);
+            });
+
+        // Apply zoom to SVG
+        svg.call(zoom);
+
+        // Add grid lines
+        g.append('g')
+            .attr('class', 'grid x-grid')
+            .attr('transform', `translate(0,${height})`)
+            .call(d3.axisBottom(xScale)
+                .tickSize(-height)
+                .tickFormat('')
+            );
+
         // Axes
         g.append('g')
-            .attr('class', 'axis')
+            .attr('class', 'axis x-axis')
             .attr('transform', `translate(0,${height})`)
             .call(d3.axisBottom(xScale).tickFormat(d3.format('.2s')));
 
         g.append('g')
-            .attr('class', 'axis')
+            .attr('class', 'axis y-axis')
             .call(d3.axisLeft(yScale));
 
-        // Bars
+        // Bars with enhanced styling
         g.selectAll('.bar')
             .data(countries)
             .enter().append('rect')
@@ -69,22 +112,50 @@ class Visualizations {
             .attr('width', 0)
             .attr('height', yScale.bandwidth())
             .attr('fill', (d, i) => this.colorScale(i))
+            .attr('stroke', 'white')
+            .attr('stroke-width', 1)
+            .style('cursor', 'pointer')
             .on('mouseover', (event, d) => {
+                d3.select(event.target)
+                    .attr('stroke-width', 2)
+                    .attr('opacity', 0.8);
+                
                 this.tooltip.transition().duration(200).style('opacity', 0.9);
                 this.tooltip.html(`
                     <strong>${d}</strong><br/>
                     Avg Views: ${d3.format('.2s')(data[d].avgViews)}<br/>
-                    Total Videos: ${data[d].videoCount}
+                    Total Videos: ${data[d].videoCount}<br/>
+                    <small>Click to see details</small>
                 `)
                 .style('left', (event.pageX + 10) + 'px')
                 .style('top', (event.pageY - 28) + 'px');
             })
-            .on('mouseout', () => {
+            .on('mouseout', (event) => {
+                d3.select(event.target)
+                    .attr('stroke-width', 1)
+                    .attr('opacity', 1);
                 this.tooltip.transition().duration(500).style('opacity', 0);
+            })
+            .on('click', (event, d) => {
+                this.showCountryDetails(d, data[d]);
             })
             .transition()
             .duration(1000)
             .attr('width', d => xScale(data[d].avgViews));
+
+        // Add value labels on bars
+        g.selectAll('.value-label')
+            .data(countries)
+            .enter().append('text')
+            .attr('class', 'value-label')
+            .attr('x', d => Math.min(xScale(data[d].avgViews) + 5, width - 10))
+            .attr('y', d => yScale(d) + yScale.bandwidth() / 2)
+            .attr('dy', '0.35em')
+            .style('font-size', '12px')
+            .style('fill', '#2c3e50')
+            .style('font-weight', 'bold')
+            .style('text-anchor', d => xScale(data[d].avgViews) + 5 > width - 50 ? 'end' : 'start')
+            .text(d => d3.format('.1s')(data[d].avgViews));
 
         // Labels
         g.append('text')
@@ -288,7 +359,7 @@ class Visualizations {
     createScatterPlot(data, container, selectedCountry = null) {
         this.clearVisualization(container);
         
-        const margin = { top: 40, right: 40, bottom: 60, left: 80 };
+        const margin = { top: 40, right: 40, bottom: 120, left: 80 };
         const containerRect = container.getBoundingClientRect();
         const width = containerRect.width - margin.left - margin.right;
         const height = containerRect.height - margin.top - margin.bottom;
@@ -298,6 +369,24 @@ class Visualizations {
             .attr('width', width + margin.left + margin.right)
             .attr('height', height + margin.top + margin.bottom);
 
+        // Filter out extreme outliers for better visualization
+        const filteredData = data.filter(d => d.views > 0 && d.likes > 0 && d.views < 1e8 && d.likes < 1e7);
+        
+        // Create scales
+        const xScale = d3.scaleLinear()
+            .domain([0, d3.max(filteredData, d => d.views)])
+            .range([0, width])
+            .nice();
+
+        const yScale = d3.scaleLinear()
+            .domain([0, d3.max(filteredData, d => d.likes)])
+            .range([height, 0])
+            .nice();
+
+        const colorByCountry = d3.scaleOrdinal(d3.schemeCategory10)
+            .domain([...new Set(filteredData.map(d => d.country))]);
+
+        // Create main chart group
         const g = svg.append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
 
@@ -320,26 +409,9 @@ class Visualizations {
                 .text(`Views vs Likes Correlation - ${countryName}`);
         }
 
-        // Filter out extreme outliers for better visualization
-        const filteredData = data.filter(d => d.views > 0 && d.likes > 0 && d.views < 1e8 && d.likes < 1e7);
-        
-        // Use linear scales with better formatting
-        const xScale = d3.scaleLinear()
-            .domain([0, d3.max(filteredData, d => d.views)])
-            .range([0, width])
-            .nice();
-
-        const yScale = d3.scaleLinear()
-            .domain([0, d3.max(filteredData, d => d.likes)])
-            .range([height, 0])
-            .nice();
-
-        const colorByCountry = d3.scaleOrdinal(d3.schemeCategory10)
-            .domain([...new Set(filteredData.map(d => d.country))]);
-
         // Add grid lines
         g.append('g')
-            .attr('class', 'grid')
+            .attr('class', 'grid x-grid')
             .attr('transform', `translate(0,${height})`)
             .call(d3.axisBottom(xScale)
                 .tickSize(-height)
@@ -347,7 +419,7 @@ class Visualizations {
             );
 
         g.append('g')
-            .attr('class', 'grid')
+            .attr('class', 'grid y-grid')
             .call(d3.axisLeft(yScale)
                 .tickSize(-width)
                 .tickFormat('')
@@ -355,7 +427,7 @@ class Visualizations {
 
         // Axes with better formatting
         g.append('g')
-            .attr('class', 'axis')
+            .attr('class', 'axis x-axis')
             .attr('transform', `translate(0,${height})`)
             .call(d3.axisBottom(xScale).tickFormat(d => {
                 if (d >= 1e6) return (d / 1e6).toFixed(1) + 'M';
@@ -364,7 +436,7 @@ class Visualizations {
             }));
 
         g.append('g')
-            .attr('class', 'axis')
+            .attr('class', 'axis y-axis')
             .call(d3.axisLeft(yScale).tickFormat(d => {
                 if (d >= 1e6) return (d / 1e6).toFixed(1) + 'M';
                 if (d >= 1e3) return (d / 1e3).toFixed(1) + 'K';
@@ -372,23 +444,22 @@ class Visualizations {
             }));
 
         // Add trend line
+        const sortedData = filteredData.sort((a, b) => a.views - b.views);
         const trendLine = d3.line()
             .x(d => xScale(d.views))
             .y(d => yScale(d.likes))
             .curve(d3.curveLinear);
 
-        // Calculate trend line points
-        const sortedData = filteredData.sort((a, b) => a.views - b.views);
-        const trendPoints = sortedData.map(d => ({ views: d.views, likes: d.likes }));
-
         g.append('path')
-            .datum(trendPoints)
+            .datum(sortedData)
             .attr('class', 'trend-line')
             .attr('fill', 'none')
             .attr('stroke', '#e74c3c')
             .attr('stroke-width', 2)
             .attr('stroke-dasharray', '5,5')
             .attr('d', trendLine);
+
+
 
         // Points with better styling
         g.selectAll('.dot')
@@ -455,28 +526,78 @@ class Visualizations {
             .style('font-size', '14px')
             .text('Likes');
 
-        // Legend
-        const legend = svg.append('g')
-            .attr('class', 'legend')
-            .attr('transform', `translate(${width + margin.left + 10}, 20)`);
 
-        const countries = [...new Set(filteredData.map(d => d.country))];
-        legend.selectAll('.legend-item')
-            .data(countries)
-            .enter().append('g')
-            .attr('class', 'legend-item')
-            .attr('transform', (d, i) => `translate(0, ${i * 20})`)
-            .each((d, i, nodes) => {
-                const gNode = d3.select(nodes[i]);
-                gNode.append('circle')
-                    .attr('r', 4)
-                    .attr('fill', colorByCountry(d));
-                gNode.append('text')
-                    .attr('x', 10)
-                    .attr('y', 4)
-                    .style('font-size', '12px')
-                    .text(d);
+
+        // Create zoom behavior and apply to entire SVG
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 50])
+            .on('zoom', (event) => {
+                const { transform } = event;
+                
+                // Update scales with zoom transform
+                const newXScale = transform.rescaleX(xScale);
+                const newYScale = transform.rescaleY(yScale);
+                
+                // Update axes
+                g.select('.x-axis').call(d3.axisBottom(newXScale).tickFormat(d => {
+                    if (d >= 1e6) return (d / 1e6).toFixed(1) + 'M';
+                    if (d >= 1e3) return (d / 1e3).toFixed(1) + 'K';
+                    return d;
+                }));
+                
+                g.select('.y-axis').call(d3.axisLeft(newYScale).tickFormat(d => {
+                    if (d >= 1e6) return (d / 1e6).toFixed(1) + 'M';
+                    if (d >= 1e3) return (d / 1e3).toFixed(1) + 'K';
+                    return d;
+                }));
+                
+                // Update grid lines
+                g.select('.x-grid').call(d3.axisBottom(newXScale).tickSize(-height).tickFormat(''));
+                g.select('.y-grid').call(d3.axisLeft(newYScale).tickSize(-width).tickFormat(''));
+                
+                // Update points
+                g.selectAll('.dot')
+                    .attr('cx', d => newXScale(d.views))
+                    .attr('cy', d => newYScale(d.likes));
+                
+                // Update trend line
+                const newTrendLine = d3.line()
+                    .x(d => newXScale(d.views))
+                    .y(d => newYScale(d.likes))
+                    .curve(d3.curveLinear);
+                
+                g.select('.trend-line').attr('d', newTrendLine(sortedData));
             });
+
+        // Apply zoom to entire SVG for better control
+        svg.call(zoom);
+
+        // Add reset zoom button for deep zoom functionality
+        const resetButton = svg.append('g')
+            .attr('class', 'reset-zoom')
+            .attr('transform', `translate(${width + margin.left - 80}, 10)`);
+
+        resetButton.append('rect')
+            .attr('width', 70)
+            .attr('height', 25)
+            .attr('rx', 5)
+            .attr('fill', '#e74c3c')
+            .attr('stroke', '#c0392b')
+            .attr('stroke-width', 1)
+            .style('cursor', 'pointer')
+            .on('click', () => {
+                svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity);
+            });
+
+        resetButton.append('text')
+            .attr('x', 35)
+            .attr('y', 17)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '11px')
+            .style('fill', 'white')
+            .style('font-weight', 'bold')
+            .style('pointer-events', 'none')
+            .text('Reset Zoom');
     }
 
     // Helper method to calculate correlation coefficient
@@ -494,6 +615,183 @@ class Visualizations {
         return denominator === 0 ? 0 : numerator / denominator;
     }
 
+    // Helper method to show selection info
+    showSelectionInfo(selectedPoints, container) {
+        // Remove existing selection info
+        d3.select(container).select('.selection-info').remove();
+        
+        const totalViews = selectedPoints.reduce((sum, d) => sum + d.views, 0);
+        const totalLikes = selectedPoints.reduce((sum, d) => sum + d.likes, 0);
+        const avgViews = totalViews / selectedPoints.length;
+        const avgLikes = totalLikes / selectedPoints.length;
+        
+        const infoDiv = d3.select(container)
+            .append('div')
+            .attr('class', 'selection-info')
+            .style('position', 'absolute')
+            .style('top', '10px')
+            .style('right', '10px')
+            .style('background', 'rgba(255, 255, 255, 0.95)')
+            .style('padding', '10px')
+            .style('border-radius', '5px')
+            .style('box-shadow', '0 2px 10px rgba(0,0,0,0.1)')
+            .style('font-size', '12px')
+            .style('z-index', '1000');
+        
+        infoDiv.html(`
+            <strong>Selected: ${selectedPoints.length} videos</strong><br/>
+            Avg Views: ${d3.format(',')(Math.round(avgViews))}<br/>
+            Avg Likes: ${d3.format(',')(Math.round(avgLikes))}<br/>
+            <button onclick="this.parentElement.remove()" style="margin-top: 5px; padding: 2px 8px; font-size: 10px;">Close</button>
+        `);
+    }
+
+    // Helper method to add export controls
+    addExportControls(container, svg, position = 'left') {
+        const controlsDiv = d3.select(container)
+            .append('div')
+            .attr('class', 'export-controls')
+            .style('position', 'absolute')
+            .style('z-index', '1000');
+
+        // Position controls based on parameter
+        if (position === 'top') {
+            controlsDiv
+                .style('top', '10px')
+                .style('left', '50%')
+                .style('transform', 'translateX(-50%)')
+                .style('text-align', 'center');
+        } else {
+            controlsDiv
+                .style('top', '10px')
+                .style('left', '10px');
+        }
+
+        controlsDiv.html(`
+            <button onclick="window.visualizations.exportSVG('${container.id}')" 
+                    style="margin-right: 5px; padding: 5px 10px; font-size: 12px; background: #3498db; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                Export SVG
+            </button>
+            <button onclick="window.visualizations.exportPNG('${container.id}')" 
+                    style="margin-right: 5px; padding: 5px 10px; font-size: 12px; background: #27ae60; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                Export PNG
+            </button>
+            <button onclick="window.visualizations.resetZoom('${container.id}')" 
+                    style="padding: 5px 10px; font-size: 12px; background: #e74c3c; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                Reset Zoom
+            </button>
+        `);
+    }
+
+    // Helper method to show country details
+    showCountryDetails(country, data) {
+        // Remove existing modal
+        d3.select('body').select('.country-modal').remove();
+        
+        const modal = d3.select('body')
+            .append('div')
+            .attr('class', 'country-modal')
+            .style('position', 'fixed')
+            .style('top', '0')
+            .style('left', '0')
+            .style('width', '100%')
+            .style('height', '100%')
+            .style('background', 'rgba(0,0,0,0.5)')
+            .style('display', 'flex')
+            .style('justify-content', 'center')
+            .style('align-items', 'center')
+            .style('z-index', '10000');
+
+        const modalContent = modal.append('div')
+            .style('background', 'white')
+            .style('padding', '20px')
+            .style('border-radius', '10px')
+            .style('max-width', '500px')
+            .style('max-height', '80%')
+            .style('overflow-y', 'auto');
+
+        modalContent.html(`
+            <h3 style="margin-bottom: 15px; color: #2c3e50;">${country} - Detailed Statistics</h3>
+            <div style="margin-bottom: 10px;">
+                <strong>Average Views:</strong> ${d3.format(',')(Math.round(data.avgViews))}
+            </div>
+            <div style="margin-bottom: 10px;">
+                <strong>Total Videos:</strong> ${data.videoCount.toLocaleString()}
+            </div>
+            <div style="margin-bottom: 10px;">
+                <strong>Total Views:</strong> ${d3.format(',')(data.avgViews * data.videoCount)}
+            </div>
+            <div style="margin-bottom: 20px;">
+                <strong>Performance Rank:</strong> ${this.getPerformanceRank(data.avgViews)}
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" 
+                    style="padding: 8px 16px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                Close
+            </button>
+        `);
+    }
+
+    // Helper method to get performance rank
+    getPerformanceRank(avgViews) {
+        if (avgViews >= 1000000) return 'Excellent (1M+ views)';
+        if (avgViews >= 500000) return 'Very Good (500K+ views)';
+        if (avgViews >= 100000) return 'Good (100K+ views)';
+        if (avgViews >= 50000) return 'Average (50K+ views)';
+        return 'Below Average (<50K views)';
+    }
+
+    // Export methods
+    exportSVG(containerId) {
+        const container = document.getElementById(containerId);
+        const svg = container.querySelector('svg');
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+        const svgUrl = URL.createObjectURL(svgBlob);
+        
+        const downloadLink = document.createElement('a');
+        downloadLink.href = svgUrl;
+        downloadLink.download = `visualization_${containerId}_${new Date().toISOString().slice(0,10)}.svg`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+    }
+
+    exportPNG(containerId) {
+        const container = document.getElementById(containerId);
+        const svg = container.querySelector('svg');
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+        const url = URL.createObjectURL(svgBlob);
+        
+        img.onload = function() {
+            canvas.width = svg.width.baseVal.value;
+            canvas.height = svg.height.baseVal.value;
+            ctx.drawImage(img, 0, 0);
+            
+            const pngUrl = canvas.toDataURL('image/png');
+            const downloadLink = document.createElement('a');
+            downloadLink.href = pngUrl;
+            downloadLink.download = `visualization_${containerId}_${new Date().toISOString().slice(0,10)}.png`;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        };
+        
+        img.src = url;
+    }
+
+    resetZoom(containerId) {
+        const container = document.getElementById(containerId);
+        const svg = container.querySelector('svg');
+        if (svg) {
+            svg.dispatchEvent(new CustomEvent('resetZoom'));
+        }
+    }
+
     // 4. Timeline - Trending Videos Over Time
     createTimeline(data, container, selectedCountry = null) {
         this.clearVisualization(container);
@@ -508,6 +806,7 @@ class Visualizations {
             .attr('width', width + margin.left + margin.right)
             .attr('height', height + margin.top + margin.bottom);
 
+        // Create main chart group
         const g = svg.append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
 
@@ -530,7 +829,7 @@ class Visualizations {
                 .text(`Trending Videos Timeline - ${countryName}`);
         }
 
-        // Scales
+        // Create scales
         const xScale = d3.scaleTime()
             .domain(d3.extent(data, d => d.date))
             .range([0, width]);
@@ -539,31 +838,77 @@ class Visualizations {
             .domain([0, d3.max(data, d => d.count)])
             .range([height, 0]);
 
-        // Line generator
-        const line = d3.line()
-            .x(d => xScale(d.date))
-            .y(d => yScale(d.count))
-            .curve(d3.curveMonotoneX);
+        // Create zoom behavior
+        const zoom = d3.zoom()
+            .scaleExtent([0.5, 10])
+            .on('zoom', (event) => {
+                const { transform } = event;
+                
+                // Update scales with zoom transform
+                const newXScale = transform.rescaleX(xScale);
+                const newYScale = transform.rescaleY(yScale);
+                
+                // Update axes
+                g.select('.x-axis').call(d3.axisBottom(newXScale).tickFormat(d3.timeFormat('%m/%d')));
+                g.select('.y-axis').call(d3.axisLeft(newYScale));
+                
+                // Update line
+                const newLine = d3.line()
+                    .x(d => newXScale(d.date))
+                    .y(d => newYScale(d.count))
+                    .curve(d3.curveMonotoneX);
+                
+                g.select('.timeline-line').attr('d', newLine(data));
+                
+                // Update points
+                g.selectAll('.dot')
+                    .attr('cx', d => newXScale(d.date))
+                    .attr('cy', d => newYScale(d.count));
+            });
+
+        // Apply zoom to SVG
+        svg.call(zoom);
+
+        // Add grid lines
+        g.append('g')
+            .attr('class', 'grid x-grid')
+            .attr('transform', `translate(0,${height})`)
+            .call(d3.axisBottom(xScale)
+                .tickSize(-height)
+                .tickFormat('')
+            );
+
+        g.append('g')
+            .attr('class', 'grid y-grid')
+            .call(d3.axisLeft(yScale)
+                .tickSize(-width)
+                .tickFormat('')
+            );
 
         // Axes
         g.append('g')
-            .attr('class', 'axis')
+            .attr('class', 'axis x-axis')
             .attr('transform', `translate(0,${height})`)
             .call(d3.axisBottom(xScale).tickFormat(d3.timeFormat('%m/%d')));
 
         g.append('g')
-            .attr('class', 'axis')
+            .attr('class', 'axis y-axis')
             .call(d3.axisLeft(yScale));
 
         // Line
         g.append('path')
             .datum(data)
+            .attr('class', 'timeline-line')
             .attr('fill', 'none')
             .attr('stroke', '#3498db')
             .attr('stroke-width', 2)
-            .attr('d', line);
+            .attr('d', d3.line()
+                .x(d => xScale(d.date))
+                .y(d => yScale(d.count))
+                .curve(d3.curveMonotoneX)
+            );
 
-        // Points
+        // Points with enhanced interactivity
         g.selectAll('.dot')
             .data(data)
             .enter().append('circle')
@@ -572,7 +917,14 @@ class Visualizations {
             .attr('cy', d => yScale(d.count))
             .attr('r', 4)
             .attr('fill', '#e74c3c')
+            .attr('stroke', 'white')
+            .attr('stroke-width', 1)
+            .style('cursor', 'pointer')
             .on('mouseover', (event, d) => {
+                d3.select(event.target)
+                    .attr('r', 6)
+                    .attr('stroke-width', 2);
+                
                 this.tooltip.transition().duration(200).style('opacity', 0.9);
                 this.tooltip.html(`
                     <strong>Date: ${d.date.toLocaleDateString()}</strong><br/>
@@ -857,11 +1209,7 @@ class Visualizations {
                 return '';
             });
     }
-
-
-
-
 }
 
-// Create global instance
+// Create global instance for export functions
 window.visualizations = new Visualizations();

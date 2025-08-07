@@ -1,6 +1,6 @@
 # YouTube Trending Data Visualization
 
-A comprehensive D3.js data visualization project analyzing YouTube trending videos across multiple countries. This project demonstrates advanced D3.js techniques and interactive data visualization concepts.
+A comprehensive D3.js data visualization project analyzing YouTube trending videos across 10 countries. This project demonstrates advanced D3.js techniques and interactive data visualization concepts.
 
 ## 🎯 Project Overview
 
@@ -26,24 +26,22 @@ This project visualizes YouTube trending data from 10 countries, providing insig
 
 ## 📊 Visualizations Implemented
 
-### 1. **Bar Chart - Average Views by Country**
+### 1. **Overview Dashboard**
+- Project statistics and data summary
+- Interactive stats cards showing total videos, views, likes, countries, and categories
+- Real-time data loading with progress indicators
+
+### 2. **Bar Chart - Average Views by Country**
 - Horizontal bar chart showing average views per video by country
 - Interactive tooltips with detailed statistics
 - Smooth animations and hover effects
 - Uses D3 scales, axes, and transitions
 
-### 2. **Pie Chart - Category Distribution**
+### 3. **Pie Chart - Category Distribution**
 - Interactive pie chart showing video category distribution
-- Country-specific filtering
+- Country-specific filtering with dropdown controls
 - Dynamic legend with category names
 - Percentage labels on larger segments
-
-### 3. **Scatter Plot - Views vs Likes Correlation**
-- Scatter plot analyzing relationship between views and likes
-- Trend line showing correlation
-- Color-coded by country
-- Correlation coefficient calculation
-- Grid lines for better readability
 
 ### 4. **Timeline - Trending Videos Over Time**
 - Line chart showing number of trending videos over time
@@ -51,28 +49,30 @@ This project visualizes YouTube trending data from 10 countries, providing insig
 - Interactive data points with tooltips
 - Smooth curve interpolation
 
-### 5. **Heatmap - Country Activity**
+### 5. **Scatter Plot - Views vs Likes Correlation**
+- Scatter plot analyzing relationship between views and likes
+- Trend line showing correlation
+- Color-coded by country
+- Correlation coefficient calculation
+- Grid lines for better readability
+
+### 6. **Heatmap - Country Activity**
 - Heatmap visualization of country vs category activity
 - Color intensity represents activity levels
 - Interactive cells with detailed information
 
-### 6. **Treemap - Top Channels**
+### 7. **Treemap - Top Channels**
 - Hierarchical treemap showing top channels by total views
 - Channel size proportional to total views
 - Interactive tooltips with channel statistics
-- Color-coded by performance
+- Configurable channel limits (10, 25, 50, 100, 200, 500)
+- Country-specific filtering
 
-### 7. **Donut Chart - Engagement Breakdown**
+### 8. **Donut Chart - Engagement Breakdown**
 - Donut chart showing engagement metrics (likes, dislikes, comments)
 - Interactive segments with tooltips
+- Country and category filtering options
 - Legend with metric descriptions
-
-### 8. **Network Graph - Category Relationships** ⭐ **NEW**
-- Force-directed network graph showing relationships between categories and countries
-- Interactive nodes that can be dragged
-- Link thickness represents relationship strength
-- Real-time physics simulation
-- Demonstrates advanced D3.js force simulation
 
 ## 🛠️ Technical Implementation
 
@@ -119,16 +119,6 @@ selection.transition()
     .attr('width', d => xScale(d.value));
 ```
 
-#### **Force Simulation** (Network Graph)
-```javascript
-// Physics-based layout for network visualization
-const simulation = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).distance(100))
-    .force('charge', d3.forceManyBody().strength(-300))
-    .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collision', d3.forceCollide().radius(d => d.size + 5));
-```
-
 ### Data Processing
 
 #### **CSV Parsing**
@@ -136,12 +126,14 @@ const simulation = d3.forceSimulation(nodes)
 - Data type conversion (strings to numbers)
 - Date parsing for trending dates
 - Category mapping from JSON files
+- Performance optimization with data sampling (1000 rows per country)
 
 #### **Data Aggregation**
 - Country-level statistics calculation
 - Category distribution analysis
 - Engagement metrics computation
 - Channel performance ranking
+- Correlation analysis for views vs likes
 
 ### Interactive Features
 
@@ -152,52 +144,128 @@ const simulation = d3.forceSimulation(nodes)
 
 #### **Filtering**
 - Country-specific data filtering
+- Category-based filtering for engagement metrics
 - Real-time visualization updates
 - Dropdown controls with country names
 
 #### **Responsive Design**
-- Window resize handling
-- Debounced resize events
+- Window resize handling with debouncing
 - Responsive chart containers
+- Mobile-friendly navigation
 
 ## 🚀 Setup & Installation
 
 ### Prerequisites
-- Node.js (v14 or higher)
 - Modern web browser with ES6 support
+- Python 3.6+ (optional, for local server)
 
 ### Installation Steps
 
-1. **Clone the repository**
+#### **Method 1: Using Python (Recommended)**
+
+1. **Clone or download the repository**
    ```bash
    git clone <repository-url>
    cd Project2_Data_Visualization
    ```
 
-2. **Install dependencies**
+2. **Start the local server**
    ```bash
-   npm install
+   # Python 3
+   python -m http.server 3000
+   
+   # Python 2 (if you have it)
+   python -m SimpleHTTPServer 3000
    ```
 
-3. **Start the development server**
-   ```bash
-   npm run dev
-   ```
-
-4. **Open in browser**
+3. **Open in browser**
    - Navigate to `http://localhost:3000`
-   - The application will automatically load
+   - The application will load automatically
 
-### Available Scripts
+#### **Method 2: Using Live Server (VS Code Extension)**
 
-- `npm start` - Start production server
-- `npm run dev` - Start development server with auto-reload
+If you're using Visual Studio Code:
+
+1. Install the "Live Server" extension
+2. Right-click on `index.html`
+3. Select "Open with Live Server"
+
+#### **Method 3: Using npx (if you have Node.js)**
+
+If you have Node.js installed, you can use:
+
+```bash
+# Install and run http-server directly
+npx http-server -p 3000 -o
+```
+
+#### **Method 4: Using PHP (if you have PHP)**
+
+If you have PHP installed:
+
+```bash
+php -S localhost:3000
+```
+
+### Troubleshooting Common Issues
+
+#### **Issue: Port 3000 is already in use**
+**Solution:** Use a different port:
+
+```bash
+# Using Python
+python -m http.server 8080
+
+# Using npx
+npx http-server -p 8080 -o
+
+# Using PHP
+php -S localhost:8080
+```
+
+#### **Issue: CORS errors when loading data**
+**Solution:** Make sure you're running the project through a web server (not opening the HTML file directly):
+
+- ❌ Don't open `index.html` directly in the browser
+- ✅ Use one of the server methods above
+
+#### **Issue: Data files not found**
+**Solution:** Verify the data files are in the correct location:
+
+```bash
+# Check if data files exist
+ls data/
+# Should show: CAvideos.csv, DEvideos.csv, etc.
+```
+
+#### **Issue: Python not found**
+**Solution:** Install Python from [python.org](https://python.org) or use an alternative method above.
+
+### Quick Start for Beginners
+
+If you're new to web development, here's the simplest way to run the project:
+
+1. **Download and extract** the project files
+2. **Open terminal/command prompt** in the project folder
+3. **Run this command:**
+   ```bash
+   python -m http.server 3000
+   ```
+4. **Wait for the server to start** (you'll see a message)
+5. **Open your browser** and go to `http://localhost:3000`
+
+### System Requirements
+
+- **Windows:** Python 3.6+ or any web server
+- **macOS:** Python 3.6+ (usually pre-installed) or any web server
+- **Linux:** Python 3.6+ (usually pre-installed) or any web server
+- **Browser:** Chrome 80+, Firefox 75+, Safari 13+, Edge 80+
 
 ## 📁 Project Structure
 
 ```
 Project2_Data_Visualization/
-├── index.html              # Main HTML file
+├── index.html              # Main HTML file with navigation
 ├── css/
 │   └── main.css           # Styles and responsive design
 ├── js/
@@ -207,17 +275,16 @@ Project2_Data_Visualization/
 ├── data/
 │   ├── *.csv             # Video data for each country
 │   └── *_category_id.json # Category mappings
-├── package.json          # Project dependencies
 └── README.md            # Project documentation
 ```
 
 ## 🎨 Design Features
 
 ### **Modern UI/UX**
-- Clean, professional design
+- Clean, professional design with card-based layout
 - Responsive layout for all screen sizes
 - Smooth animations and transitions
-- Intuitive navigation
+- Intuitive navigation with sticky header
 
 ### **Color Schemes**
 - D3.js built-in color schemes (`d3.schemeCategory10`)
@@ -233,29 +300,32 @@ Project2_Data_Visualization/
 
 ### **Data Loading**
 - Asynchronous data loading with Promise.all()
-- Data sampling for large datasets
+- Data sampling for large datasets (1000 rows per country)
 - Progressive loading with loading indicators
+- Error handling for failed data loads
 
 ### **Rendering**
 - Efficient D3.js selections and updates
-- Debounced resize event handling
+- Debounced resize event handling (250ms delay)
 - Memory management for large datasets
+- Clear visualization containers before re-rendering
 
 ### **User Experience**
 - Loading states and error handling
 - Responsive design for mobile devices
 - Smooth animations without blocking UI
+- Interactive error recovery with retry buttons
 
 ## 🔧 Customization
 
 ### **Adding New Visualizations**
-1. Add visualization method to `Visualizations` class
+1. Add visualization method to `Visualizations` class in `js/visualizations.js`
 2. Update navigation in `index.html`
 3. Add case in `main.js` renderVisualization method
-4. Add corresponding CSS styles
+4. Add corresponding CSS styles in `css/main.css`
 
 ### **Modifying Data Sources**
-1. Update `DataLoader` class methods
+1. Update `DataLoader` class methods in `js/data-loader.js`
 2. Modify CSV parsing logic if needed
 3. Update data aggregation functions
 
@@ -272,8 +342,8 @@ This project demonstrates mastery of:
 - Scales and axes for data mapping
 - Shape generators (line, arc, treemap)
 - Transitions and animations
-- Force simulation for network graphs
 - Event handling and interactivity
+- Tooltip creation and positioning
 
 ### **Data Visualization Principles**
 - Appropriate chart type selection
@@ -283,9 +353,10 @@ This project demonstrates mastery of:
 
 ### **Web Development**
 - Modern JavaScript (ES6+)
-- Asynchronous programming
+- Asynchronous programming with async/await
 - Error handling and user feedback
 - Performance optimization
+- Modular code organization
 
 ## 🐛 Troubleshooting
 
@@ -303,7 +374,7 @@ This project demonstrates mastery of:
 
 3. **Performance issues**
    - Reduce data sample size in `data-loader.js`
-   - Check for memory leaks in force simulations
+   - Check for memory leaks in large datasets
    - Optimize rendering loops
 
 ### **Browser Compatibility**
