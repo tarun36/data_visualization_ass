@@ -96,6 +96,7 @@ class YouTubeDataVisualization {
         // Setup new chart event listeners
         this.setupTagEvolutionEventListeners();
         this.setupTagFlowEventListeners();
+        this.setupPublishingTimingEventListeners();
     }
 
     // Enable/disable navigation
@@ -626,7 +627,10 @@ class YouTubeDataVisualization {
     // Render Publishing Timing Strategy
     renderPublishingTiming(container) {
         try {
-            const timingData = this.dataLoader.getPublishingTimingData();
+            // Get current filter values
+            const countryFilter = document.getElementById('timing-country-filter')?.value || 'global';
+            
+            const timingData = this.dataLoader.getPublishingTimingData(countryFilter);
             this.visualizations.createPublishingTimingHeatmap(timingData, container);
         } catch (error) {
             console.error('Error rendering Publishing Timing Strategy:', error);
@@ -724,10 +728,26 @@ class YouTubeDataVisualization {
         }
     }
 
-    // Populate country dropdown for tag charts
+    // Setup publishing timing event listeners
+    setupPublishingTimingEventListeners() {
+        const countryFilter = document.getElementById('timing-country-filter');
+        
+        // Country filter change handler
+        if (countryFilter) {
+            countryFilter.addEventListener('change', () => {
+                const container = document.querySelector('#publishing-timing .chart-container');
+                if (container) {
+                    this.renderPublishingTiming(container);
+                }
+            });
+        }
+    }
+
+    // Populate country dropdown for all charts
     populateCountryDropdown() {
         const tagCountrySelect = document.getElementById('tag-country-filter');
         const flowCountrySelect = document.getElementById('flow-country-filter');
+        const timingCountrySelect = document.getElementById('timing-country-filter');
         
         if (this.dataLoader) {
             const countries = this.dataLoader.getAvailableCountries();
@@ -751,6 +771,17 @@ class YouTubeDataVisualization {
                     option.value = country.code;
                     option.textContent = country.name;
                     flowCountrySelect.appendChild(option);
+                });
+            }
+            
+            // Populate Publishing Timing dropdown
+            if (timingCountrySelect) {
+                timingCountrySelect.innerHTML = '<option value="global" selected>🌍 Global (All Countries)</option>';
+                countries.slice(1).forEach(country => {
+                    const option = document.createElement('option');
+                    option.value = country.code;
+                    option.textContent = country.name;
+                    timingCountrySelect.appendChild(option);
                 });
             }
             

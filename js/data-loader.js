@@ -533,9 +533,17 @@ class DataLoader {
     }
 
     // Get publishing timing data for heatmap visualization
-    getPublishingTimingData() {
+    getPublishingTimingData(selectedCountry = 'global') {
         try {
             const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            
+            // Determine data source based on country selection
+            let videosToProcess;
+            if (selectedCountry === 'global') {
+                videosToProcess = Object.values(this.videoData).flat();
+            } else {
+                videosToProcess = this.videoData[selectedCountry] || [];
+            }
             
             // Initialize 7x24 grid for days and hours
             const timingData = [];
@@ -552,8 +560,8 @@ class DataLoader {
                 }
             }
             
-            // Process all videos
-            Object.values(this.videoData).flat().forEach(video => {
+            // Process videos
+            videosToProcess.forEach(video => {
                 if (video && video.publish_time) {
                     const publishDate = new Date(video.publish_time);
                     
@@ -638,7 +646,9 @@ class DataLoader {
             return {
                 data: heatmapArray,
                 days: daysOfWeek,
-                maxSuccess: maxSuccess
+                maxSuccess: maxSuccess,
+                selectedCountry: selectedCountry,
+                countryName: selectedCountry === 'global' ? 'Global' : this.getCountryName(selectedCountry)
             };
             
         } catch (error) {

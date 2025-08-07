@@ -1226,10 +1226,14 @@ class Visualizations {
             return;
         }
 
-        const margin = { top: 80, right: 80, bottom: 120, left: 100 };
+        // Responsive margin adjustments for Publishing Timing
         const containerRect = container.getBoundingClientRect();
+        const isMobile = containerRect.width < 768;
+        const margin = isMobile 
+            ? { top: 60, right: 60, bottom: 100, left: 80 }
+            : { top: 80, right: 80, bottom: 120, left: 100 };
         const width = containerRect.width - margin.left - margin.right;
-        const minHeight = 350; // Ensure minimum chart height
+        const minHeight = isMobile ? 300 : 350;
         const height = Math.max(minHeight, containerRect.height - margin.top - margin.bottom);
         
         const cellWidth = width / 24; // 24 hours
@@ -1401,10 +1405,14 @@ class Visualizations {
             return;
         }
 
-        const margin = { top: 80, right: 100, bottom: 100, left: 150 };
+        // Responsive margin adjustments for Tag Racing
         const containerRect = container.getBoundingClientRect();
+        const isMobile = containerRect.width < 768;
+        const margin = isMobile 
+            ? { top: 60, right: 80, bottom: 80, left: 100 }
+            : { top: 80, right: 100, bottom: 100, left: 150 };
         const width = containerRect.width - margin.left - margin.right;
-        const minHeight = 400;
+        const minHeight = isMobile ? 350 : 400;
         const height = Math.max(minHeight, containerRect.height - margin.top - margin.bottom);
 
         const svg = d3.select(container)
@@ -1415,8 +1423,7 @@ class Visualizations {
         const chartGroup = svg.append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
 
-        // Get current period (start with first period)
-        let currentPeriodIndex = 0;
+        // Calculate maximum count across all periods for scaling
         const maxCount = d3.max(data.racingData, period => 
             d3.max(period.tags, tag => tag.count)) || 10;
 
@@ -1431,9 +1438,12 @@ class Visualizations {
 
         const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
 
-        // Create bars
+        // Calculate average data for display
+        const avgData = this.calculateAverageTagData(data.racingData);
+
+        // Create bars with average data
         const bars = chartGroup.selectAll('.racing-bar')
-            .data(data.racingData[currentPeriodIndex].tags)
+            .data(avgData)
             .enter().append('rect')
             .attr('class', 'racing-bar')
             .attr('x', 0)
@@ -1443,57 +1453,11 @@ class Visualizations {
             .attr('fill', (d, i) => colorScale(i))
             .attr('stroke', '#fff')
             .attr('stroke-width', 2)
-            .style('cursor', 'pointer')
-            .on('mouseover', (event, d) => {
-                // Highlight the bar
-                d3.select(event.target)
-                    .attr('stroke', '#2c3e50')
-                    .attr('stroke-width', 3)
-                    .style('opacity', 0.9);
+            .style('cursor', 'pointer');
 
-                // Show detailed tooltip
-                this.tooltip.style('opacity', .9)
-                    .html(`
-                        <div style="font-weight: bold; font-size: 14px; color: #2c3e50; margin-bottom: 8px;">
-                            🏆 ${d.tag}
-                        </div>
-                        <div style="margin-bottom: 4px;">
-                            <strong>Rank:</strong> #${data.racingData[currentPeriodIndex].tags.indexOf(d) + 1}
-                        </div>
-                        <div style="margin-bottom: 4px;">
-                            <strong>Usage Count:</strong> ${d.count.toLocaleString()}
-                        </div>
-                        <div style="margin-bottom: 4px;">
-                            <strong>Total Views:</strong> ${d.totalViews.toLocaleString()}
-                        </div>
-                        <div style="margin-bottom: 4px;">
-                            <strong>Total Likes:</strong> ${d.totalLikes.toLocaleString()}
-                        </div>
-                        <div style="margin-bottom: 4px;">
-                            <strong>Avg Views per Use:</strong> ${Math.round(d.totalViews / d.count).toLocaleString()}
-                        </div>
-                        <div style="color: #7f8c8d; font-size: 11px; margin-top: 6px;">
-                            Period: ${data.racingData[currentPeriodIndex].period}<br/>
-                            Region: ${data.countryName || 'Global'}
-                        </div>
-                    `)
-                    .style('left', (event.pageX + 15) + 'px')
-                    .style('top', (event.pageY - 10) + 'px');
-            })
-            .on('mouseout', (event, d) => {
-                // Reset bar appearance
-                d3.select(event.target)
-                    .attr('stroke', '#fff')
-                    .attr('stroke-width', 2)
-                    .style('opacity', 1);
-
-                // Hide tooltip
-                this.tooltip.style('opacity', 0);
-            });
-
-        // Add value labels
+        // Add value labels with average data
         const labels = chartGroup.selectAll('.bar-label')
-            .data(data.racingData[currentPeriodIndex].tags)
+            .data(avgData)
             .enter().append('text')
             .attr('class', 'bar-label')
             .attr('x', d => xScale(d.count) + 5)
@@ -1504,9 +1468,9 @@ class Visualizations {
             .style('fill', '#333')
             .text(d => d.count);
 
-        // Add tag names
+        // Add tag names with average data
         const tagNames = chartGroup.selectAll('.tag-name')
-            .data(data.racingData[currentPeriodIndex].tags)
+            .data(avgData)
             .enter().append('text')
             .attr('class', 'tag-name')
             .attr('x', -10)
@@ -1517,66 +1481,7 @@ class Visualizations {
             .style('font-weight', 'bold')
             .style('fill', '#333')
             .style('cursor', 'pointer')
-            .text(d => d.tag.length > 15 ? d.tag.substring(0, 15) + '...' : d.tag)
-            .on('mouseover', (event, d) => {
-                // Highlight the tag name
-                d3.select(event.target)
-                    .style('fill', '#2980b9')
-                    .style('font-size', '12px');
-
-                // Also highlight the corresponding bar
-                const barIndex = data.racingData[currentPeriodIndex].tags.indexOf(d);
-                chartGroup.selectAll('.racing-bar')
-                    .filter((barData, i) => i === barIndex)
-                    .attr('stroke', '#2c3e50')
-                    .attr('stroke-width', 3)
-                    .style('opacity', 0.9);
-
-                // Show detailed tooltip
-                this.tooltip.style('opacity', .9)
-                    .html(`
-                        <div style="font-weight: bold; font-size: 14px; color: #2c3e50; margin-bottom: 8px;">
-                            🏷️ ${d.tag}
-                        </div>
-                        <div style="margin-bottom: 4px;">
-                            <strong>Rank:</strong> #${barIndex + 1} of ${data.racingData[currentPeriodIndex].tags.length}
-                        </div>
-                        <div style="margin-bottom: 4px;">
-                            <strong>Usage Count:</strong> ${d.count.toLocaleString()} videos
-                        </div>
-                        <div style="margin-bottom: 4px;">
-                            <strong>Total Views:</strong> ${d.totalViews.toLocaleString()}
-                        </div>
-                        <div style="margin-bottom: 4px;">
-                            <strong>Total Likes:</strong> ${d.totalLikes.toLocaleString()}
-                        </div>
-                        <div style="margin-bottom: 4px;">
-                            <strong>Performance:</strong> ${Math.round(d.totalViews / d.count).toLocaleString()} avg views/use
-                        </div>
-                        <div style="color: #7f8c8d; font-size: 11px; margin-top: 6px;">
-                            💡 ${d.tag.length > 15 ? 'Full tag: ' + d.tag : 'Region: ' + (data.countryName || 'Global')}
-                        </div>
-                    `)
-                    .style('left', (event.pageX + 15) + 'px')
-                    .style('top', (event.pageY - 10) + 'px');
-            })
-            .on('mouseout', (event, d) => {
-                // Reset tag name appearance
-                d3.select(event.target)
-                    .style('fill', '#333')
-                    .style('font-size', '11px');
-
-                // Reset corresponding bar
-                const barIndex = data.racingData[currentPeriodIndex].tags.indexOf(d);
-                chartGroup.selectAll('.racing-bar')
-                    .filter((barData, i) => i === barIndex)
-                    .attr('stroke', '#fff')
-                    .attr('stroke-width', 2)
-                    .style('opacity', 1);
-
-                // Hide tooltip
-                this.tooltip.style('opacity', 0);
-            });
+            .text(d => d.tag.length > 15 ? d.tag.substring(0, 15) + '...' : d.tag);
 
         // Add axes
         chartGroup.append('g')
@@ -1599,238 +1504,122 @@ class Visualizations {
             .attr('text-anchor', 'middle')
             .style('font-size', '14px')
             .style('fill', '#666')
-            .text(`Current Period: ${data.racingData[currentPeriodIndex].period}`);
+            .text(`Showing: Average Across All Periods`);
 
-        // Add controls
-        const controlsGroup = svg.append('g')
-            .attr('transform', `translate(${margin.left}, ${height + margin.top + 50})`);
+        // Calculate average data for cleaner display
 
-        // Previous button
-        controlsGroup.append('rect')
-            .attr('class', 'control-btn prev-btn')
-            .attr('x', 0)
-            .attr('y', 0)
-            .attr('width', 80)
-            .attr('height', 30)
-            .attr('fill', '#007bff')
-            .attr('stroke', '#0056b3')
-            .attr('rx', 5)
-            .style('cursor', 'pointer')
-            .on('click', () => {
-                if (currentPeriodIndex > 0) {
-                    currentPeriodIndex--;
-                    updateChart();
-                }
+        // Update bars to show average data instead of first period
+        chartGroup.selectAll('.racing-bar')
+            .data(avgData)
+            .attr('width', d => xScale(d.count))
+            .attr('y', d => yScale(d.tag))
+            .on('mouseover', (event, d) => {
+                d3.select(event.target)
+                    .attr('stroke', '#2c3e50')
+                    .attr('stroke-width', 3)
+                    .style('opacity', 0.9);
+
+                this.tooltip.style('opacity', .9)
+                    .html(`
+                        <div style="font-weight: bold; font-size: 14px; color: #2c3e50; margin-bottom: 8px;">
+                            🏆 ${d.tag}
+                        </div>
+                        <div style="margin-bottom: 4px;">
+                            <strong>Rank:</strong> #${avgData.indexOf(d) + 1}
+                        </div>
+                        <div style="margin-bottom: 4px;">
+                            <strong>Avg Usage Count:</strong> ${d.count.toLocaleString()}
+                        </div>
+                        <div style="margin-bottom: 4px;">
+                            <strong>Total Views:</strong> ${d.totalViews.toLocaleString()}
+                        </div>
+                        <div style="margin-bottom: 4px;">
+                            <strong>Total Likes:</strong> ${d.totalLikes.toLocaleString()}
+                        </div>
+                        <div style="margin-bottom: 4px;">
+                            <strong>Avg Views per Use:</strong> ${Math.round(d.totalViews / d.count).toLocaleString()}
+                        </div>
+                        <div style="color: #7f8c8d; font-size: 11px; margin-top: 6px;">
+                            Average across all time periods<br/>
+                            Region: ${data.countryName || 'Global'}
+                        </div>
+                    `)
+                    .style('left', (event.pageX + 15) + 'px')
+                    .style('top', (event.pageY - 10) + 'px');
+            })
+            .on('mouseout', (event, d) => {
+                d3.select(event.target)
+                    .attr('stroke', '#fff')
+                    .attr('stroke-width', 2)
+                    .style('opacity', 1);
+                this.tooltip.style('opacity', 0);
             });
 
-        controlsGroup.append('text')
-            .attr('x', 40)
-            .attr('y', 20)
-            .attr('text-anchor', 'middle')
-            .style('font-size', '12px')
-            .style('fill', 'white')
-            .style('pointer-events', 'none')
-            .text('← Prev');
+        // Update labels to show average data
+        chartGroup.selectAll('.bar-label')
+            .data(avgData)
+            .attr('x', d => xScale(d.count) + 5)
+            .attr('y', d => yScale(d.tag) + yScale.bandwidth() / 2)
+            .text(d => d.count);
 
-        // Next button
-        controlsGroup.append('rect')
-            .attr('class', 'control-btn next-btn')
-            .attr('x', 90)
-            .attr('y', 0)
-            .attr('width', 80)
-            .attr('height', 30)
-            .attr('fill', '#007bff')
-            .attr('stroke', '#0056b3')
-            .attr('rx', 5)
-            .style('cursor', 'pointer')
-            .on('click', () => {
-                if (currentPeriodIndex < data.racingData.length - 1) {
-                    currentPeriodIndex++;
-                    updateChart();
-                }
+        // Update tag names to show average data
+        chartGroup.selectAll('.tag-name')
+            .data(avgData)
+            .attr('y', d => yScale(d.tag) + yScale.bandwidth() / 2)
+            .text(d => d.tag.length > 15 ? d.tag.substring(0, 15) + '...' : d.tag)
+            .on('mouseover', (event, d) => {
+                d3.select(event.target)
+                    .style('fill', '#2980b9')
+                    .style('font-size', '12px');
+
+                const barIndex = avgData.indexOf(d);
+                chartGroup.selectAll('.racing-bar')
+                    .filter((barData, i) => i === barIndex)
+                    .attr('stroke', '#2c3e50')
+                    .attr('stroke-width', 3)
+                    .style('opacity', 0.9);
+
+                this.tooltip.style('opacity', .9)
+                    .html(`
+                        <div style="font-weight: bold; font-size: 14px; color: #2c3e50; margin-bottom: 8px;">
+                            🏷️ ${d.tag}
+                        </div>
+                        <div style="margin-bottom: 4px;">
+                            <strong>Rank:</strong> #${barIndex + 1} of ${avgData.length}
+                        </div>
+                        <div style="margin-bottom: 4px;">
+                            <strong>Avg Usage Count:</strong> ${d.count.toLocaleString()} videos
+                        </div>
+                        <div style="margin-bottom: 4px;">
+                            <strong>Total Views:</strong> ${d.totalViews.toLocaleString()}
+                        </div>
+                        <div style="margin-bottom: 4px;">
+                            <strong>Total Likes:</strong> ${d.totalLikes.toLocaleString()}
+                        </div>
+                        <div style="margin-bottom: 4px;">
+                            <strong>Performance:</strong> ${Math.round(d.totalViews / d.count).toLocaleString()} avg views/use
+                        </div>
+                        <div style="color: #7f8c8d; font-size: 11px; margin-top: 6px;">
+                            💡 ${d.tag.length > 15 ? 'Full tag: ' + d.tag : 'Average performance across all periods'}
+                        </div>
+                    `)
+                    .style('left', (event.pageX + 15) + 'px')
+                    .style('top', (event.pageY - 10) + 'px');
+            })
+            .on('mouseout', (event, d) => {
+                d3.select(event.target)
+                    .style('fill', '#333')
+                    .style('font-size', '11px');
+
+                const barIndex = avgData.indexOf(d);
+                chartGroup.selectAll('.racing-bar')
+                    .filter((barData, i) => i === barIndex)
+                    .attr('stroke', '#fff')
+                    .attr('stroke-width', 2)
+                    .style('opacity', 1);
+
+                this.tooltip.style('opacity', 0);
             });
-
-        controlsGroup.append('text')
-            .attr('x', 130)
-            .attr('y', 20)
-            .attr('text-anchor', 'middle')
-            .style('font-size', '12px')
-            .style('fill', 'white')
-            .style('pointer-events', 'none')
-            .text('Next →');
-
-        // Auto-play button
-        let autoPlay = false;
-        let autoPlayInterval;
-
-        controlsGroup.append('rect')
-            .attr('class', 'control-btn play-btn')
-            .attr('x', 180)
-            .attr('y', 0)
-            .attr('width', 80)
-            .attr('height', 30)
-            .attr('fill', '#28a745')
-            .attr('stroke', '#1e7e34')
-            .attr('rx', 5)
-            .style('cursor', 'pointer')
-            .on('click', () => {
-                autoPlay = !autoPlay;
-                if (autoPlay) {
-                    d3.select('.play-btn').attr('fill', '#dc3545');
-                    controlsGroup.select('.play-btn + text').text('⏸ Stop');
-                    autoPlayInterval = setInterval(() => {
-                        currentPeriodIndex = (currentPeriodIndex + 1) % data.racingData.length;
-                        updateChart();
-                    }, 2000);
-                } else {
-                    d3.select('.play-btn').attr('fill', '#28a745');
-                    controlsGroup.select('.play-btn + text').text('▶ Play');
-                    clearInterval(autoPlayInterval);
-                }
-            });
-
-        controlsGroup.append('text')
-            .attr('x', 220)
-            .attr('y', 20)
-            .attr('text-anchor', 'middle')
-            .style('font-size', '12px')
-            .style('fill', 'white')
-            .style('pointer-events', 'none')
-            .text('▶ Play');
-
-        function updateChart() {
-            const currentData = data.racingData[currentPeriodIndex];
-            
-            // Update period title
-            periodTitle.text(`Current Period: ${currentData.period}`);
-            
-            // Update bars with transition and maintain mouseover functionality
-            const updatedBars = chartGroup.selectAll('.racing-bar')
-                .data(currentData.tags);
-                
-            updatedBars.transition()
-                .duration(750)
-                .attr('width', d => xScale(d.count))
-                .attr('y', d => yScale(d.tag));
-
-            // Re-attach mouseover events to bars (they may get lost during transitions)
-            updatedBars
-                .on('mouseover', (event, d) => {
-                    d3.select(event.target)
-                        .attr('stroke', '#2c3e50')
-                        .attr('stroke-width', 3)
-                        .style('opacity', 0.9);
-
-                    this.tooltip.style('opacity', .9)
-                        .html(`
-                            <div style="font-weight: bold; font-size: 14px; color: #2c3e50; margin-bottom: 8px;">
-                                🏆 ${d.tag}
-                            </div>
-                            <div style="margin-bottom: 4px;">
-                                <strong>Rank:</strong> #${currentData.tags.indexOf(d) + 1}
-                            </div>
-                            <div style="margin-bottom: 4px;">
-                                <strong>Usage Count:</strong> ${d.count.toLocaleString()}
-                            </div>
-                            <div style="margin-bottom: 4px;">
-                                <strong>Total Views:</strong> ${d.totalViews.toLocaleString()}
-                            </div>
-                            <div style="margin-bottom: 4px;">
-                                <strong>Total Likes:</strong> ${d.totalLikes.toLocaleString()}
-                            </div>
-                            <div style="margin-bottom: 4px;">
-                                <strong>Avg Views per Use:</strong> ${Math.round(d.totalViews / d.count).toLocaleString()}
-                            </div>
-                            <div style="color: #7f8c8d; font-size: 11px; margin-top: 6px;">
-                                Period: ${currentData.period}<br/>
-                                Region: ${data.countryName || 'Global'}
-                            </div>
-                        `)
-                        .style('left', (event.pageX + 15) + 'px')
-                        .style('top', (event.pageY - 10) + 'px');
-                })
-                .on('mouseout', (event, d) => {
-                    d3.select(event.target)
-                        .attr('stroke', '#fff')
-                        .attr('stroke-width', 2)
-                        .style('opacity', 1);
-                    this.tooltip.style('opacity', 0);
-                });
-
-            // Update labels
-            chartGroup.selectAll('.bar-label')
-                .data(currentData.tags)
-                .transition()
-                .duration(750)
-                .attr('x', d => xScale(d.count) + 5)
-                .attr('y', d => yScale(d.tag) + yScale.bandwidth() / 2)
-                .text(d => d.count);
-
-            // Update tag names with mouseover functionality
-            const updatedTagNames = chartGroup.selectAll('.tag-name')
-                .data(currentData.tags);
-                
-            updatedTagNames.transition()
-                .duration(750)
-                .attr('y', d => yScale(d.tag) + yScale.bandwidth() / 2)
-                .text(d => d.tag.length > 15 ? d.tag.substring(0, 15) + '...' : d.tag);
-
-            // Re-attach mouseover events to tag names
-            updatedTagNames
-                .on('mouseover', (event, d) => {
-                    d3.select(event.target)
-                        .style('fill', '#2980b9')
-                        .style('font-size', '12px');
-
-                    const barIndex = currentData.tags.indexOf(d);
-                    chartGroup.selectAll('.racing-bar')
-                        .filter((barData, i) => i === barIndex)
-                        .attr('stroke', '#2c3e50')
-                        .attr('stroke-width', 3)
-                        .style('opacity', 0.9);
-
-                    this.tooltip.style('opacity', .9)
-                        .html(`
-                            <div style="font-weight: bold; font-size: 14px; color: #2c3e50; margin-bottom: 8px;">
-                                🏷️ ${d.tag}
-                            </div>
-                            <div style="margin-bottom: 4px;">
-                                <strong>Rank:</strong> #${barIndex + 1} of ${currentData.tags.length}
-                            </div>
-                            <div style="margin-bottom: 4px;">
-                                <strong>Usage Count:</strong> ${d.count.toLocaleString()} videos
-                            </div>
-                            <div style="margin-bottom: 4px;">
-                                <strong>Total Views:</strong> ${d.totalViews.toLocaleString()}
-                            </div>
-                            <div style="margin-bottom: 4px;">
-                                <strong>Total Likes:</strong> ${d.totalLikes.toLocaleString()}
-                            </div>
-                            <div style="margin-bottom: 4px;">
-                                <strong>Performance:</strong> ${Math.round(d.totalViews / d.count).toLocaleString()} avg views/use
-                            </div>
-                            <div style="color: #7f8c8d; font-size: 11px; margin-top: 6px;">
-                                💡 ${d.tag.length > 15 ? 'Full tag: ' + d.tag : 'Region: ' + (data.countryName || 'Global')}
-                            </div>
-                        `)
-                        .style('left', (event.pageX + 15) + 'px')
-                        .style('top', (event.pageY - 10) + 'px');
-                })
-                .on('mouseout', (event, d) => {
-                    d3.select(event.target)
-                        .style('fill', '#333')
-                        .style('font-size', '11px');
-
-                    const barIndex = currentData.tags.indexOf(d);
-                    chartGroup.selectAll('.racing-bar')
-                        .filter((barData, i) => i === barIndex)
-                        .attr('stroke', '#fff')
-                        .attr('stroke-width', 2)
-                        .style('opacity', 1);
-
-                    this.tooltip.style('opacity', 0);
-                });
-        }
 
         // Add instructions
         svg.append('text')
@@ -1839,7 +1628,43 @@ class Visualizations {
             .attr('text-anchor', 'middle')
             .style('font-size', '11px')
             .style('fill', '#999')
-            .text('🏆 Hover bars or tag names for details • Navigate periods to see winners • Auto-play for the full race');
+            .text('🏆 Hover bars or tag names for detailed performance metrics across all time periods');
+    }
+
+    // Helper function to calculate average tag data across all periods
+    calculateAverageTagData(racingData) {
+        const tagTotals = {};
+        
+        // Sum up all data across periods
+        racingData.forEach(period => {
+            period.tags.forEach(tag => {
+                if (!tagTotals[tag.tag]) {
+                    tagTotals[tag.tag] = {
+                        tag: tag.tag,
+                        count: 0,
+                        totalViews: 0,
+                        totalLikes: 0,
+                        periods: 0
+                    };
+                }
+                tagTotals[tag.tag].count += tag.count;
+                tagTotals[tag.tag].totalViews += tag.totalViews;
+                tagTotals[tag.tag].totalLikes += tag.totalLikes;
+                tagTotals[tag.tag].periods++;
+            });
+        });
+        
+        // Calculate averages and sort by usage
+        const avgTags = Object.values(tagTotals).map(tag => ({
+            tag: tag.tag,
+            count: Math.round(tag.count / tag.periods),
+            totalViews: tag.totalViews,
+            totalLikes: tag.totalLikes,
+            avgViews: Math.round(tag.totalViews / tag.count),
+            avgLikes: Math.round(tag.totalLikes / tag.count)
+        })).sort((a, b) => b.count - a.count);
+        
+        return avgTags;
     }
 
     // Create Tag Flow Diagram (Sankey) - shows tag-category relationships
@@ -1848,10 +1673,13 @@ class Visualizations {
             // Clear container with fade effect
             d3.select(container).selectAll('*').remove();
 
-            // Set up responsive dimensions
+            // Set up responsive dimensions with better margins
             const containerRect = container.getBoundingClientRect();
-            const margin = { top: 20, right: 60, bottom: 40, left: 60 };
-            const width = Math.max(800, containerRect.width) - margin.left - margin.right;
+            const isMobile = containerRect.width < 768;
+            const margin = isMobile 
+                ? { top: 30, right: 80, bottom: 50, left: 80 }
+                : { top: 40, right: 120, bottom: 60, left: 120 };
+            const width = Math.max(isMobile ? 600 : 800, containerRect.width) - margin.left - margin.right;
             const height = Math.max(500, Math.min(700, containerRect.height || 600)) - margin.top - margin.bottom;
 
             // Create SVG with proper spacing
@@ -2064,9 +1892,17 @@ class Visualizations {
                     tooltip.style('opacity', 0);
                 });
 
-            // Add node labels with smart positioning
+            // Add node labels with smart positioning to prevent cutoff
             node.append('text')
-                .attr('x', d => d.type === 'tag' ? -6 : 31)
+                .attr('x', d => {
+                    if (d.type === 'tag') {
+                        // Position tag labels safely inside left margin
+                        return Math.max(-margin.left + 10, -6);
+                    } else {
+                        // Position category labels safely inside right margin
+                        return Math.min(width - margin.right + 10, 31);
+                    }
+                })
                 .attr('y', d => (d.y1 - d.y0) / 2)
                 .attr('dy', '0.35em')
                 .attr('text-anchor', d => d.type === 'tag' ? 'end' : 'start')
@@ -2076,17 +1912,19 @@ class Visualizations {
                 .style('fill', '#2c3e50')
                 .style('user-select', 'none')
                 .text(d => {
-                    // Truncate long names
-                    const maxLength = 12;
+                    // Dynamic truncation based on available space
+                    const availableWidth = d.type === 'tag' ? margin.left - 20 : margin.right - 40;
+                    const charWidth = 8; // Approximate character width
+                    const maxLength = Math.floor(availableWidth / charWidth);
                     return d.name.length > maxLength ? d.name.substring(0, maxLength) + '...' : d.name;
                 })
                 .append('title')
                 .text(d => d.name);
 
-            // Add section headers with clean styling
+            // Add section headers with safe positioning
             g.append('text')
-                .attr('x', -10)
-                .attr('y', -5)
+                .attr('x', -margin.left / 2)
+                .attr('y', -15)
                 .attr('text-anchor', 'middle')
                 .style('font-family', 'system-ui, -apple-system, sans-serif')
                 .style('font-size', '14px')
@@ -2095,8 +1933,8 @@ class Visualizations {
                 .text('🏷️ TAGS');
 
             g.append('text')
-                .attr('x', width + 10)
-                .attr('y', -5)
+                .attr('x', width + (margin.right / 2))
+                .attr('y', -15)
                 .attr('text-anchor', 'middle')
                 .style('font-family', 'system-ui, -apple-system, sans-serif')
                 .style('font-size', '14px')

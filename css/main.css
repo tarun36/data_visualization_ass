@@ -951,8 +951,36 @@ footer {
     height: auto;
 }
 
-/* Responsive adjustments for Tag Flow */
+/* Global responsive improvements for all charts */
 @media (max-width: 1024px) {
+    .visualization {
+        margin: 15px 0;
+    }
+    
+    .chart-container {
+        min-height: 400px;
+        padding: 10px;
+    }
+    
+    .filter-controls {
+        padding: 12px;
+        margin: 12px 0;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .control-group {
+        margin-bottom: 8px;
+        width: 100%;
+    }
+    
+    .control-group select {
+        width: 100%;
+        font-size: 14px;
+        padding: 8px;
+    }
+    
+    /* Tag Flow specific */
     #tag-flow .chart-container {
         min-height: 550px;
     }
@@ -965,21 +993,72 @@ footer {
     .sankey-node text {
         font-size: 11px;
     }
+    
+    /* Publishing Timing specific */
+    #publishing-timing .chart-container {
+        min-height: 450px;
+    }
+    
+    /* Tag Racing specific */
+    #tag-evolution .chart-container {
+        min-height: 450px;
+    }
 }
 
 @media (max-width: 768px) {
-    #tag-flow .chart-container {
-        min-height: 500px;
+    /* Global chart improvements */
+    .visualization {
+        margin: 10px 0;
+    }
+    
+    .chart-container {
+        min-height: 350px;
         padding: 8px;
     }
     
-    #tag-flow .filter-controls {
-        padding: 12px;
-        margin: 12px 0;
+    .chart-description {
+        padding: 10px 12px;
+        font-size: 13px;
+        margin: 8px 0;
     }
     
-    #tag-flow .control-group {
-        margin-bottom: 8px;
+    .filter-controls {
+        padding: 10px;
+        margin: 8px 0;
+        flex-direction: column;
+        gap: 6px;
+    }
+    
+    .control-group {
+        margin-bottom: 6px;
+        width: 100%;
+        flex-direction: column;
+    }
+    
+    .control-group label {
+        margin-bottom: 4px;
+        font-size: 13px;
+    }
+    
+    .control-group select {
+        width: 100%;
+        font-size: 13px;
+        padding: 6px;
+        border-radius: 4px;
+    }
+    
+    /* Navigation improvements */
+    .nav-btn {
+        font-size: 12px;
+        padding: 8px 12px;
+        margin: 2px;
+    }
+    
+    /* Tag Flow specific */
+    #tag-flow .chart-container {
+        min-height: 500px;
+        padding: 8px;
+        overflow: visible;
     }
     
     .sankey-tooltip {
@@ -991,22 +1070,86 @@ footer {
     .sankey-node text {
         font-size: 10px;
     }
+    
+    /* Ensure Sankey labels don't get cut off on smaller screens */
+    #tag-flow .chart-container svg {
+        overflow: visible;
+        padding: 0 10px;
+    }
+    
+    /* Publishing Timing specific */
+    #publishing-timing .chart-container {
+        min-height: 400px;
+    }
+    
+    /* Tag Racing specific */
+    #tag-evolution .chart-container {
+        min-height: 400px;
+    }
 }
 
 @media (max-width: 480px) {
+    /* Mobile-first optimizations */
+    .visualization {
+        margin: 8px 0;
+    }
+    
+    .chart-container {
+        min-height: 300px;
+        padding: 6px;
+    }
+    
+    .chart-description {
+        padding: 8px 10px;
+        font-size: 12px;
+        margin: 6px 0;
+        line-height: 1.3;
+    }
+    
+    .filter-controls {
+        padding: 8px;
+        margin: 6px 0;
+        border-radius: 6px;
+    }
+    
+    .control-group {
+        margin-bottom: 4px;
+    }
+    
+    .control-group label {
+        font-size: 12px;
+        margin-bottom: 2px;
+    }
+    
+    .control-group select {
+        font-size: 12px;
+        padding: 5px;
+    }
+    
+    /* Navigation for mobile */
+    nav {
+        padding: 8px;
+    }
+    
+    .nav-btn {
+        font-size: 11px;
+        padding: 6px 10px;
+        margin: 1px;
+        border-radius: 4px;
+    }
+    
+    /* Chart-specific mobile optimizations */
     #tag-flow .chart-container {
         min-height: 450px;
         padding: 4px;
     }
     
-    #tag-flow .chart-description {
-        padding: 10px 12px;
-        font-size: 12px;
+    #publishing-timing .chart-container {
+        min-height: 350px;
     }
     
-    #tag-flow .filter-controls {
-        padding: 10px;
-        margin: 8px 0;
+    #tag-evolution .chart-container {
+        min-height: 350px;
     }
     
     .sankey-tooltip {
