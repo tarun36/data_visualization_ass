@@ -815,6 +815,347 @@ class DataLoader {
         }
     }
 
+    // Get tag racing bar data - shows tag competition over time periods
+    getTagRacingData(filterType = 'overview') {
+        try {
+            const tagPeriodData = {};
+            const periods = new Set();
+            
+            // Process all videos to build tag data by time periods (weekly)
+            Object.values(this.videoData).flat().forEach(video => {
+                if (video && video.tags && video.trending_date_parsed) {
+                    const trendingDate = video.trending_date_parsed;
+                    const weekNumber = Math.floor((trendingDate.getTime() - new Date(trendingDate.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
+                    const periodKey = `Week ${weekNumber + 1}`;
+                    periods.add(periodKey);
+                    
+                    // Parse tags
+                    const rawTags = video.tags.split('|').map(tag => tag.replace(/"/g, '').trim().toLowerCase());
+                    const videoTags = rawTags.filter(tag => {
+                        if (!tag || tag.length <= 2 || tag.length >= 30) return false;
+                        const nonePatterns = ['none', '[none]', 'n/a', 'na', 'null', 'undefined', 'no tag', 'no tags', 'notag', 'notags', 'empty', 'blank', '-', '_', '.', '[n/a]', '[na]', '[null]', '[empty]', '[blank]'];
+                        if (nonePatterns.includes(tag)) return false;
+                        if (tag.startsWith('[') && tag.endsWith(']')) {
+                            const innerTag = tag.slice(1, -1);
+                            if (nonePatterns.includes(innerTag)) return false;
+                        }
+                        if (tag.includes('none') && (tag === 'none' || tag.startsWith('none ') || tag.endsWith(' none') || tag.includes(' none '))) return false;
+                        return true;
+                    }).slice(0, 8);
+
+                    videoTags.forEach(tag => {
+                        if (!tagPeriodData[tag]) {
+                            tagPeriodData[tag] = {};
+                        }
+                        if (!tagPeriodData[tag][periodKey]) {
+                            tagPeriodData[tag][periodKey] = {
+                                count: 0,
+                                totalViews: 0,
+                                totalLikes: 0
+                            };
+                        }
+                        tagPeriodData[tag][periodKey].count++;
+                        tagPeriodData[tag][periodKey].totalViews += video.views || 0;
+                        tagPeriodData[tag][periodKey].totalLikes += video.likes || 0;
+                    });
+                }
+            });
+
+            // Filter and sort periods
+            const sortedPeriods = Array.from(periods).sort();
+            
+            // Apply filter settings
+            let tagLimit = 15;
+            let minOccurrences = 5;
+            switch (filterType) {
+                case 'top-tags': tagLimit = 10; minOccurrences = 10; break;
+                case 'trending': tagLimit = 8; minOccurrences = 15; break;
+                default: tagLimit = 15; minOccurrences = 5; break;
+            }
+            
+            // Get significant tags
+            const significantTags = Object.entries(tagPeriodData)
+                .filter(([tag, periodData]) => {
+                    const totalCount = Object.values(periodData).reduce((sum, data) => sum + data.count, 0);
+                    return totalCount >= minOccurrences;
+                })
+                .sort((a, b) => {
+                    const aTotal = Object.values(a[1]).reduce((sum, data) => sum + data.count, 0);
+                    const bTotal = Object.values(b[1]).reduce((sum, data) => sum + data.count, 0);
+                    return bTotal - aTotal;
+                })
+                .slice(0, tagLimit)
+                .map(([tag]) => tag);
+
+            // Build racing data structure
+            const racingData = sortedPeriods.map(period => {
+                const periodData = significantTags.map(tag => ({
+                    tag,
+                    count: tagPeriodData[tag] && tagPeriodData[tag][period] ? tagPeriodData[tag][period].count : 0,
+                    totalViews: tagPeriodData[tag] && tagPeriodData[tag][period] ? tagPeriodData[tag][period].totalViews : 0,
+                    totalLikes: tagPeriodData[tag] && tagPeriodData[tag][period] ? tagPeriodData[tag][period].totalLikes : 0,
+                })).sort((a, b) => b.count - a.count);
+
+                return {
+                    period,
+                    tags: periodData
+                };
+            });
+
+            console.log(`Tag Racing: ${significantTags.length} tags across ${sortedPeriods.length} periods`);
+            console.log('Racing tags:', significantTags.slice(0, 5));
+
+            return {
+                racingData,
+                tags: significantTags,
+                periods: sortedPeriods,
+                stats: {
+                    totalTags: significantTags.length,
+                    totalPeriods: sortedPeriods.length
+                }
+            };
+
+        } catch (error) {
+            console.error('Error processing tag racing data:', error);
+            return { racingData: [], tags: [], periods: [], stats: {} };
+        }
+    }
+
+    // Get tag momentum data - stacked area chart showing tag trends
+    getTagMomentumData(filterType = 'overview') {
+        try {
+            const tagTimelineData = {};
+            const allDates = new Set();
+            
+            // Process videos for momentum data (similar to timeline but optimized for stacking)
+            Object.values(this.videoData).flat().forEach(video => {
+                if (video && video.tags && video.trending_date_parsed) {
+                    const trendingDate = video.trending_date_parsed;
+                    const dateKey = trendingDate.toISOString().split('T')[0];
+                    allDates.add(dateKey);
+                    
+                    const rawTags = video.tags.split('|').map(tag => tag.replace(/"/g, '').trim().toLowerCase());
+                    const videoTags = rawTags.filter(tag => {
+                        if (!tag || tag.length <= 2 || tag.length >= 30) return false;
+                        const nonePatterns = ['none', '[none]', 'n/a', 'na', 'null', 'undefined', 'no tag', 'no tags', 'notag', 'notags', 'empty', 'blank', '-', '_', '.', '[n/a]', '[na]', '[null]', '[empty]', '[blank]'];
+                        if (nonePatterns.includes(tag)) return false;
+                        if (tag.startsWith('[') && tag.endsWith(']')) {
+                            const innerTag = tag.slice(1, -1);
+                            if (nonePatterns.includes(innerTag)) return false;
+                        }
+                        if (tag.includes('none') && (tag === 'none' || tag.startsWith('none ') || tag.endsWith(' none') || tag.includes(' none '))) return false;
+                        return true;
+                    }).slice(0, 8);
+
+                    videoTags.forEach(tag => {
+                        if (!tagTimelineData[tag]) {
+                            tagTimelineData[tag] = {};
+                        }
+                        if (!tagTimelineData[tag][dateKey]) {
+                            tagTimelineData[tag][dateKey] = { count: 0, totalViews: 0 };
+                        }
+                        tagTimelineData[tag][dateKey].count++;
+                        tagTimelineData[tag][dateKey].totalViews += video.views || 0;
+                    });
+                }
+            });
+
+            // Apply filter settings
+            let tagLimit = 12; // Fewer for stacked areas
+            let minOccurrences = 8;
+            switch (filterType) {
+                case 'top-tags': tagLimit = 8; minOccurrences = 12; break;
+                case 'trending': tagLimit = 6; minOccurrences = 20; break;
+                default: tagLimit = 12; minOccurrences = 8; break;
+            }
+            
+            const significantTags = Object.entries(tagTimelineData)
+                .filter(([tag, timeData]) => {
+                    const totalCount = Object.values(timeData).reduce((sum, dayData) => sum + dayData.count, 0);
+                    return totalCount >= minOccurrences;
+                })
+                .sort((a, b) => {
+                    const aTotal = Object.values(a[1]).reduce((sum, dayData) => sum + dayData.count, 0);
+                    const bTotal = Object.values(b[1]).reduce((sum, dayData) => sum + dayData.count, 0);
+                    return bTotal - aTotal;
+                })
+                .slice(0, tagLimit)
+                .map(([tag]) => tag);
+
+            const sortedDates = Array.from(allDates).sort();
+            
+            // Build momentum data for D3 stack
+            const momentumData = sortedDates.map(dateKey => {
+                const dataPoint = { date: new Date(dateKey), dateKey };
+                significantTags.forEach(tag => {
+                    const dayData = tagTimelineData[tag] && tagTimelineData[tag][dateKey] ? tagTimelineData[tag][dateKey] : { count: 0 };
+                    dataPoint[tag] = dayData.count;
+                });
+                return dataPoint;
+            });
+
+            console.log(`Tag Momentum: ${significantTags.length} tags across ${sortedDates.length} dates`);
+            console.log('Momentum tags:', significantTags.slice(0, 5));
+
+            return {
+                momentumData,
+                tags: significantTags,
+                dates: sortedDates,
+                stats: {
+                    totalTags: significantTags.length,
+                    totalDates: sortedDates.length
+                }
+            };
+
+        } catch (error) {
+            console.error('Error processing tag momentum data:', error);
+            return { momentumData: [], tags: [], dates: [], stats: {} };
+        }
+    }
+
+    // Get tag flow data - Sankey-style showing tag to category relationships
+    getTagFlowData(filterType = 'overview') {
+        try {
+            const tagCategoryFlow = {};
+            const categoryTagFlow = {};
+            const allTags = new Set();
+            const allCategories = new Set();
+            
+            // Process videos for flow relationships
+            Object.values(this.videoData).flat().forEach(video => {
+                if (video && video.tags && video.category_name) {
+                    const category = video.category_name;
+                    allCategories.add(category);
+                    
+                    const rawTags = video.tags.split('|').map(tag => tag.replace(/"/g, '').trim().toLowerCase());
+                    const videoTags = rawTags.filter(tag => {
+                        if (!tag || tag.length <= 2 || tag.length >= 30) return false;
+                        const nonePatterns = ['none', '[none]', 'n/a', 'na', 'null', 'undefined', 'no tag', 'no tags', 'notag', 'notags', 'empty', 'blank', '-', '_', '.', '[n/a]', '[na]', '[null]', '[empty]', '[blank]'];
+                        if (nonePatterns.includes(tag)) return false;
+                        if (tag.startsWith('[') && tag.endsWith(']')) {
+                            const innerTag = tag.slice(1, -1);
+                            if (nonePatterns.includes(innerTag)) return false;
+                        }
+                        if (tag.includes('none') && (tag === 'none' || tag.startsWith('none ') || tag.endsWith(' none') || tag.includes(' none '))) return false;
+                        return true;
+                    }).slice(0, 5); // Fewer tags for flow clarity
+
+                    videoTags.forEach(tag => {
+                        allTags.add(tag);
+                        
+                        // Tag -> Category flow
+                        if (!tagCategoryFlow[tag]) {
+                            tagCategoryFlow[tag] = {};
+                        }
+                        if (!tagCategoryFlow[tag][category]) {
+                            tagCategoryFlow[tag][category] = 0;
+                        }
+                        tagCategoryFlow[tag][category]++;
+                        
+                        // Category -> Tag flow (reverse)
+                        if (!categoryTagFlow[category]) {
+                            categoryTagFlow[category] = {};
+                        }
+                        if (!categoryTagFlow[category][tag]) {
+                            categoryTagFlow[category][tag] = 0;
+                        }
+                        categoryTagFlow[category][tag]++;
+                    });
+                }
+            });
+
+            // Apply filter settings for flow complexity
+            let tagLimit = 10;
+            let categoryLimit = 8;
+            let minFlowValue = 3;
+            
+            switch (filterType) {
+                case 'top-tags': tagLimit = 8; categoryLimit = 6; minFlowValue = 5; break;
+                case 'trending': tagLimit = 6; categoryLimit = 5; minFlowValue = 8; break;
+                default: tagLimit = 10; categoryLimit = 8; minFlowValue = 3; break;
+            }
+
+            // Get top tags and categories
+            const topTags = Object.entries(tagCategoryFlow)
+                .map(([tag, categories]) => ({
+                    tag,
+                    total: Object.values(categories).reduce((sum, count) => sum + count, 0)
+                }))
+                .sort((a, b) => b.total - a.total)
+                .slice(0, tagLimit)
+                .map(item => item.tag);
+
+            const topCategories = Object.entries(categoryTagFlow)
+                .map(([category, tags]) => ({
+                    category,
+                    total: Object.values(tags).reduce((sum, count) => sum + count, 0)
+                }))
+                .sort((a, b) => b.total - a.total)
+                .slice(0, categoryLimit)
+                .map(item => item.category);
+
+            // Build nodes and links for Sankey
+            const nodes = [];
+            const links = [];
+            
+            // Add tag nodes
+            topTags.forEach((tag, index) => {
+                nodes.push({
+                    id: index,
+                    name: tag,
+                    type: 'tag'
+                });
+            });
+
+            // Add category nodes
+            topCategories.forEach((category, index) => {
+                nodes.push({
+                    id: topTags.length + index,
+                    name: category,
+                    type: 'category'
+                });
+            });
+
+            // Add links
+            topTags.forEach((tag, tagIndex) => {
+                if (tagCategoryFlow[tag]) {
+                    topCategories.forEach((category, categoryIndex) => {
+                        const value = tagCategoryFlow[tag][category] || 0;
+                        if (value >= minFlowValue) {
+                            links.push({
+                                source: tagIndex,
+                                target: topTags.length + categoryIndex,
+                                value: value,
+                                tag: tag,
+                                category: category
+                            });
+                        }
+                    });
+                }
+            });
+
+            console.log(`Tag Flow: ${topTags.length} tags → ${topCategories.length} categories`);
+            console.log(`Links: ${links.length} flows with min value ${minFlowValue}`);
+
+            return {
+                nodes,
+                links,
+                tags: topTags,
+                categories: topCategories,
+                stats: {
+                    totalNodes: nodes.length,
+                    totalLinks: links.length,
+                    totalTags: topTags.length,
+                    totalCategories: topCategories.length
+                }
+            };
+
+        } catch (error) {
+            console.error('Error processing tag flow data:', error);
+            return { nodes: [], links: [], tags: [], categories: [], stats: {} };
+        }
+    }
+
     // Initialize all data loading
     async init(countriesToLoad = ['US', 'CA', 'GB', 'DE', 'FR', 'IN', 'JP', 'KR', 'MX', 'RU']) {
         try {

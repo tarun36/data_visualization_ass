@@ -1379,27 +1379,694 @@ class Visualizations {
             .text('💡 Hover cells to see publishing stats • Darker colors = better performance');
     }
 
-    // 8. Tag Evolution Timeline - Tag Trends Over Time
-    createTagEvolutionTimeline(data, container) {
+    // 8. Tag Analysis Charts - Multiple visualization approaches
+    createTagAnalysisChart(data, container, chartType = 'racing-bars') {
+        switch (chartType) {
+            case 'racing-bars':
+                this.createTagRacingBars(data, container);
+                break;
+            case 'momentum-chart':
+                this.createTagMomentumChart(data, container);
+                break;
+            case 'flow-diagram':
+                this.createTagFlowDiagram(data, container);
+                break;
+            default:
+                this.createTagRacingBars(data, container);
+        }
+    }
+
+    // 8a. Tag Racing Bar Chart - Animated competition over time
+    createTagRacingBars(data, container) {
         this.clearVisualization(container);
         
-        if (!data || !data.timelineData || data.timelineData.length === 0) {
+        if (!data || !data.racingData || data.racingData.length === 0) {
             container.innerHTML = `
                 <div style="display: flex; align-items: center; justify-content: center; height: 100%; background-color: #f8f9fa; border-radius: 5px;">
                     <div style="text-align: center; color: #6c757d;">
-                        <h4>No Tag Timeline Data Available</h4>
-                        <p>Waiting for video tag data to load...</p>
+                        <h4>No Racing Data Available</h4>
+                        <p>Waiting for tag racing data to load...</p>
                     </div>
                 </div>
             `;
             return;
         }
 
-        const margin = { top: 80, right: 150, bottom: 80, left: 100 };
+        const margin = { top: 80, right: 100, bottom: 100, left: 150 };
         const containerRect = container.getBoundingClientRect();
         const width = containerRect.width - margin.left - margin.right;
-        const minHeight = 350; // Ensure minimum chart height  
+        const minHeight = 400;
         const height = Math.max(minHeight, containerRect.height - margin.top - margin.bottom);
+
+        const svg = d3.select(container)
+            .append('svg')
+            .attr('width', width + margin.left + margin.right)
+            .attr('height', height + margin.top + margin.bottom);
+
+        const chartGroup = svg.append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        // Get current period (start with first period)
+        let currentPeriodIndex = 0;
+        const maxCount = d3.max(data.racingData, period => 
+            d3.max(period.tags, tag => tag.count)) || 10;
+
+        const yScale = d3.scaleBand()
+            .domain(data.tags)
+            .range([0, height])
+            .padding(0.1);
+
+        const xScale = d3.scaleLinear()
+            .domain([0, maxCount])
+            .range([0, width]);
+
+        const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+
+        // Create bars
+        const bars = chartGroup.selectAll('.racing-bar')
+            .data(data.racingData[currentPeriodIndex].tags)
+            .enter().append('rect')
+            .attr('class', 'racing-bar')
+            .attr('x', 0)
+            .attr('y', d => yScale(d.tag))
+            .attr('width', d => xScale(d.count))
+            .attr('height', yScale.bandwidth())
+            .attr('fill', (d, i) => colorScale(i))
+            .attr('stroke', '#fff')
+            .attr('stroke-width', 2);
+
+        // Add value labels
+        const labels = chartGroup.selectAll('.bar-label')
+            .data(data.racingData[currentPeriodIndex].tags)
+            .enter().append('text')
+            .attr('class', 'bar-label')
+            .attr('x', d => xScale(d.count) + 5)
+            .attr('y', d => yScale(d.tag) + yScale.bandwidth() / 2)
+            .attr('dy', '0.35em')
+            .style('font-size', '12px')
+            .style('font-weight', 'bold')
+            .style('fill', '#333')
+            .text(d => d.count);
+
+        // Add tag names
+        const tagNames = chartGroup.selectAll('.tag-name')
+            .data(data.racingData[currentPeriodIndex].tags)
+            .enter().append('text')
+            .attr('class', 'tag-name')
+            .attr('x', -10)
+            .attr('y', d => yScale(d.tag) + yScale.bandwidth() / 2)
+            .attr('dy', '0.35em')
+            .attr('text-anchor', 'end')
+            .style('font-size', '11px')
+            .style('font-weight', 'bold')
+            .style('fill', '#333')
+            .text(d => d.tag.length > 15 ? d.tag.substring(0, 15) + '...' : d.tag);
+
+        // Add axes
+        chartGroup.append('g')
+            .attr('transform', `translate(0,${height})`)
+            .call(d3.axisBottom(xScale));
+
+        // Add title and period indicator
+        const title = svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', 25)
+            .attr('text-anchor', 'middle')
+            .style('font-size', width > 600 ? '18px' : '16px')
+            .style('font-weight', 'bold')
+            .style('fill', '#2c3e50')
+            .text('🏃‍♂️ Tag Racing Competition');
+
+        const periodTitle = svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', 50)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '14px')
+            .style('fill', '#666')
+            .text(`Current Period: ${data.racingData[currentPeriodIndex].period}`);
+
+        // Add controls
+        const controlsGroup = svg.append('g')
+            .attr('transform', `translate(${margin.left}, ${height + margin.top + 50})`);
+
+        // Previous button
+        controlsGroup.append('rect')
+            .attr('class', 'control-btn prev-btn')
+            .attr('x', 0)
+            .attr('y', 0)
+            .attr('width', 80)
+            .attr('height', 30)
+            .attr('fill', '#007bff')
+            .attr('stroke', '#0056b3')
+            .attr('rx', 5)
+            .style('cursor', 'pointer')
+            .on('click', () => {
+                if (currentPeriodIndex > 0) {
+                    currentPeriodIndex--;
+                    updateChart();
+                }
+            });
+
+        controlsGroup.append('text')
+            .attr('x', 40)
+            .attr('y', 20)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '12px')
+            .style('fill', 'white')
+            .style('pointer-events', 'none')
+            .text('← Prev');
+
+        // Next button
+        controlsGroup.append('rect')
+            .attr('class', 'control-btn next-btn')
+            .attr('x', 90)
+            .attr('y', 0)
+            .attr('width', 80)
+            .attr('height', 30)
+            .attr('fill', '#007bff')
+            .attr('stroke', '#0056b3')
+            .attr('rx', 5)
+            .style('cursor', 'pointer')
+            .on('click', () => {
+                if (currentPeriodIndex < data.racingData.length - 1) {
+                    currentPeriodIndex++;
+                    updateChart();
+                }
+            });
+
+        controlsGroup.append('text')
+            .attr('x', 130)
+            .attr('y', 20)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '12px')
+            .style('fill', 'white')
+            .style('pointer-events', 'none')
+            .text('Next →');
+
+        // Auto-play button
+        let autoPlay = false;
+        let autoPlayInterval;
+
+        controlsGroup.append('rect')
+            .attr('class', 'control-btn play-btn')
+            .attr('x', 180)
+            .attr('y', 0)
+            .attr('width', 80)
+            .attr('height', 30)
+            .attr('fill', '#28a745')
+            .attr('stroke', '#1e7e34')
+            .attr('rx', 5)
+            .style('cursor', 'pointer')
+            .on('click', () => {
+                autoPlay = !autoPlay;
+                if (autoPlay) {
+                    d3.select('.play-btn').attr('fill', '#dc3545');
+                    controlsGroup.select('.play-btn + text').text('⏸ Stop');
+                    autoPlayInterval = setInterval(() => {
+                        currentPeriodIndex = (currentPeriodIndex + 1) % data.racingData.length;
+                        updateChart();
+                    }, 2000);
+                } else {
+                    d3.select('.play-btn').attr('fill', '#28a745');
+                    controlsGroup.select('.play-btn + text').text('▶ Play');
+                    clearInterval(autoPlayInterval);
+                }
+            });
+
+        controlsGroup.append('text')
+            .attr('x', 220)
+            .attr('y', 20)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '12px')
+            .style('fill', 'white')
+            .style('pointer-events', 'none')
+            .text('▶ Play');
+
+        function updateChart() {
+            const currentData = data.racingData[currentPeriodIndex];
+            
+            // Update period title
+            periodTitle.text(`Current Period: ${currentData.period}`);
+            
+            // Update bars with transition
+            chartGroup.selectAll('.racing-bar')
+                .data(currentData.tags)
+                .transition()
+                .duration(750)
+                .attr('width', d => xScale(d.count))
+                .attr('y', d => yScale(d.tag));
+
+            // Update labels
+            chartGroup.selectAll('.bar-label')
+                .data(currentData.tags)
+                .transition()
+                .duration(750)
+                .attr('x', d => xScale(d.count) + 5)
+                .attr('y', d => yScale(d.tag) + yScale.bandwidth() / 2)
+                .text(d => d.count);
+
+            chartGroup.selectAll('.tag-name')
+                .data(currentData.tags)
+                .transition()
+                .duration(750)
+                .attr('y', d => yScale(d.tag) + yScale.bandwidth() / 2)
+                .text(d => d.tag.length > 15 ? d.tag.substring(0, 15) + '...' : d.tag);
+        }
+
+        // Add instructions
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', height + margin.top + margin.bottom - 15)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '11px')
+            .style('fill', '#999')
+            .text('🎯 Watch tags compete over time • Use controls to navigate periods • Auto-play to see the race');
+    }
+
+    // 8b. Tag Momentum Chart - Stacked area showing trends  
+    createTagMomentumChart(data, container) {
+        this.clearVisualization(container);
+        
+        if (!data || !data.momentumData || data.momentumData.length === 0) {
+            container.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; background-color: #f8f9fa; border-radius: 5px;">
+                    <div style="text-align: center; color: #6c757d;">
+                        <h4>No Momentum Data Available</h4>
+                        <p>Waiting for tag momentum data to load...</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        const margin = { top: 80, right: 100, bottom: 80, left: 80 };
+        const containerRect = container.getBoundingClientRect();
+        const width = containerRect.width - margin.left - margin.right;
+        const minHeight = 350;
+        const height = Math.max(minHeight, containerRect.height - margin.top - margin.bottom);
+
+        const svg = d3.select(container)
+            .append('svg')
+            .attr('width', width + margin.left + margin.right)
+            .attr('height', height + margin.top + margin.bottom);
+
+        const chartGroup = svg.append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        // Scales
+        const xScale = d3.scaleTime()
+            .domain(d3.extent(data.momentumData, d => d.date))
+            .range([0, width]);
+
+        const maxTotal = d3.max(data.momentumData, d => {
+            return data.tags.reduce((sum, tag) => sum + (d[tag] || 0), 0);
+        }) || 10;
+
+        const yScale = d3.scaleLinear()
+            .domain([0, maxTotal])
+            .range([height, 0]);
+
+        const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+
+        // Create stack generator
+        const stack = d3.stack()
+            .keys(data.tags)
+            .value((d, key) => d[key] || 0);
+
+        const stackedData = stack(data.momentumData);
+
+        // Create area generator
+        const area = d3.area()
+            .x(d => xScale(d.data.date))
+            .y0(d => yScale(d[0]))
+            .y1(d => yScale(d[1]))
+            .curve(d3.curveCardinal);
+
+        // Add areas
+        const areas = chartGroup.selectAll('.tag-area')
+            .data(stackedData)
+            .enter().append('path')
+            .attr('class', 'tag-area')
+            .attr('d', area)
+            .attr('fill', (d, i) => colorScale(i))
+            .attr('opacity', 0.8)
+            .attr('stroke', '#fff')
+            .attr('stroke-width', 1)
+            .style('cursor', 'pointer')
+            .on('mouseover', (event, d) => {
+                const tagName = d.key;
+                this.tooltip.style('opacity', .9)
+                    .html(`
+                        <strong>${tagName}</strong><br/>
+                        Tag trend over time<br/>
+                        <em>Hover specific points for details</em>
+                    `)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+            })
+            .on('mouseout', () => {
+                this.tooltip.style('opacity', 0);
+            });
+
+        // Add grid lines
+        chartGroup.append('g')
+            .attr('class', 'grid')
+            .attr('transform', `translate(0,${height})`)
+            .call(d3.axisBottom(xScale)
+                .tickSize(-height)
+                .tickFormat('')
+            )
+            .style('stroke-dasharray', '3,3')
+            .style('opacity', 0.3);
+
+        chartGroup.append('g')
+            .attr('class', 'grid')
+            .call(d3.axisLeft(yScale)
+                .tickSize(-width)
+                .tickFormat('')
+            )
+            .style('stroke-dasharray', '3,3')
+            .style('opacity', 0.3);
+
+        // Add axes
+        const numDates = data.momentumData.length;
+        const maxTicks = Math.min(8, Math.floor(width / 100));
+        
+        chartGroup.append('g')
+            .attr('transform', `translate(0,${height})`)
+            .call(d3.axisBottom(xScale)
+                .ticks(maxTicks)
+                .tickFormat(d3.timeFormat(numDates > 20 ? '%b' : '%b %d')))
+            .selectAll('text')
+            .style('text-anchor', 'end')
+            .attr('dx', '-.8em')
+            .attr('dy', '.15em')
+            .attr('transform', 'rotate(-45)')
+            .style('font-size', '10px');
+
+        chartGroup.append('g')
+            .call(d3.axisLeft(yScale));
+
+        // Add axis labels
+        svg.append('text')
+            .attr('transform', 'rotate(-90)')
+            .attr('y', 20)
+            .attr('x', -(height + margin.top) / 2)
+            .style('text-anchor', 'middle')
+            .style('font-size', '12px')
+            .style('fill', '#666')
+            .text('Total Tag Usage');
+
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', height + margin.top + margin.bottom - 5)
+            .style('text-anchor', 'middle')
+            .style('font-size', '12px')
+            .style('fill', '#666')
+            .text('Timeline');
+
+        // Add title
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', 25)
+            .attr('text-anchor', 'middle')
+            .style('font-size', width > 600 ? '18px' : '16px')
+            .style('font-weight', 'bold')
+            .style('fill', '#2c3e50')
+            .text('📈 Tag Momentum Trends');
+
+        // Add subtitle
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', 45)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '12px')
+            .style('fill', '#7f8c8d')
+            .text('Stacked areas show tag usage trends and market share');
+
+        // Create legend
+        const legend = svg.append('g')
+            .attr('transform', `translate(${width + margin.left + 10}, ${margin.top})`);
+
+        const legendItems = legend.selectAll('.legend-item')
+            .data(data.tags.slice(0, Math.min(10, data.tags.length)))
+            .enter().append('g')
+            .attr('class', 'legend-item')
+            .attr('transform', (d, i) => `translate(0, ${i * 18})`);
+
+        legendItems.append('rect')
+            .attr('x', 0)
+            .attr('y', -8)
+            .attr('width', 12)
+            .attr('height', 12)
+            .attr('fill', (d, i) => colorScale(i));
+
+        legendItems.append('text')
+            .attr('x', 16)
+            .attr('y', 0)
+            .attr('dy', '0.35em')
+            .style('font-size', '10px')
+            .style('fill', '#333')
+            .text(d => d.length > 10 ? d.substring(0, 10) + '...' : d);
+
+        // Add legend title
+        legend.append('text')
+            .attr('x', 0)
+            .attr('y', -15)
+            .style('font-size', '12px')
+            .style('font-weight', 'bold')
+            .style('fill', '#333')
+            .text('Tags:');
+
+        // Add stats
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', height + margin.top + margin.bottom - 25)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '11px')
+            .style('fill', '#999')
+            .text(`📊 ${data.stats.totalTags} tags tracked • Smooth trends show momentum • Areas show market share`);
+    }
+
+    // 8c. Tag Flow Diagram - Sankey-style showing relationships
+    createTagFlowDiagram(data, container) {
+        this.clearVisualization(container);
+        
+        if (!data || !data.nodes || data.nodes.length === 0 || !data.links || data.links.length === 0) {
+            container.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; background-color: #f8f9fa; border-radius: 5px;">
+                    <div style="text-align: center; color: #6c757d;">
+                        <h4>No Flow Data Available</h4>
+                        <p>Waiting for tag flow relationships to load...</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        const margin = { top: 80, right: 100, bottom: 80, left: 100 };
+        const containerRect = container.getBoundingClientRect();
+        const width = containerRect.width - margin.left - margin.right;
+        const minHeight = 400;
+        const height = Math.max(minHeight, containerRect.height - margin.top - margin.bottom);
+
+        const svg = d3.select(container)
+            .append('svg')
+            .attr('width', width + margin.left + margin.right)
+            .attr('height', height + margin.top + margin.bottom);
+
+        const chartGroup = svg.append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        // Create Sankey layout
+        const sankey = d3.sankey()
+            .nodeWidth(15)
+            .nodePadding(10)
+            .extent([[0, 5], [width, height - 5]]);
+
+        // Create graph with processed data
+        const graph = sankey({
+            nodes: data.nodes.map(d => Object.assign({}, d)),
+            links: data.links.map(d => Object.assign({}, d))
+        });
+
+        // Add links
+        const links = chartGroup.append('g')
+            .selectAll('.link')
+            .data(graph.links)
+            .enter().append('path')
+            .attr('class', 'link')
+            .attr('d', d3.sankeyLinkHorizontal())
+            .attr('stroke-width', d => Math.max(1, d.width))
+            .attr('stroke', '#666')
+            .attr('stroke-opacity', 0.5)
+            .attr('fill', 'none')
+            .style('cursor', 'pointer')
+            .on('mouseover', (event, d) => {
+                this.tooltip.style('opacity', .9)
+                    .html(`
+                        <strong>${d.tag} → ${d.category}</strong><br/>
+                        Flow: ${d.value} videos<br/>
+                        Connection strength: ${d.value >= 10 ? 'Strong' : d.value >= 5 ? 'Medium' : 'Weak'}
+                    `)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+            })
+            .on('mouseout', () => {
+                this.tooltip.style('opacity', 0);
+            });
+
+        // Add nodes
+        const nodes = chartGroup.append('g')
+            .selectAll('.node')
+            .data(graph.nodes)
+            .enter().append('g')
+            .attr('class', 'node')
+            .attr('transform', d => `translate(${d.x0},${d.y0})`);
+
+        // Node rectangles
+        nodes.append('rect')
+            .attr('height', d => d.y1 - d.y0)
+            .attr('width', d => d.x1 - d.x0)
+            .attr('fill', d => d.type === 'tag' ? '#3498db' : '#e74c3c')
+            .attr('stroke', '#2c3e50')
+            .attr('stroke-width', 1)
+            .style('cursor', 'pointer')
+            .on('mouseover', (event, d) => {
+                const nodeType = d.type === 'tag' ? 'Tag' : 'Category';
+                const connections = d.type === 'tag' 
+                    ? graph.links.filter(link => link.source === d).length
+                    : graph.links.filter(link => link.target === d).length;
+                    
+                this.tooltip.style('opacity', .9)
+                    .html(`
+                        <strong>${nodeType}: ${d.name}</strong><br/>
+                        Connections: ${connections}<br/>
+                        ${d.type === 'tag' ? 'Used in multiple categories' : 'Contains multiple tags'}
+                    `)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+            })
+            .on('mouseout', () => {
+                this.tooltip.style('opacity', 0);
+            });
+
+        // Node labels
+        nodes.append('text')
+            .attr('x', d => (d.x1 - d.x0) / 2)
+            .attr('y', d => (d.y1 - d.y0) / 2)
+            .attr('dy', '0.35em')
+            .attr('text-anchor', 'middle')
+            .style('font-size', '10px')
+            .style('font-weight', 'bold')
+            .style('fill', 'white')
+            .style('pointer-events', 'none')
+            .text(d => {
+                const maxLength = Math.floor((d.x1 - d.x0) / 7);
+                return d.name.length > maxLength ? d.name.substring(0, maxLength) + '...' : d.name;
+            });
+
+        // Add section labels
+        svg.append('text')
+            .attr('x', margin.left + 50)
+            .attr('y', margin.top - 10)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '14px')
+            .style('font-weight', 'bold')
+            .style('fill', '#3498db')
+            .text('🏷️ TAGS');
+
+        svg.append('text')
+            .attr('x', margin.left + width - 50)
+            .attr('y', margin.top - 10)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '14px')
+            .style('font-weight', 'bold')
+            .style('fill', '#e74c3c')
+            .text('📂 CATEGORIES');
+
+        // Add title
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', 25)
+            .attr('text-anchor', 'middle')
+            .style('font-size', width > 600 ? '18px' : '16px')
+            .style('font-weight', 'bold')
+            .style('fill', '#2c3e50')
+            .text('🌊 Tag-Category Flow Analysis');
+
+        // Add subtitle
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', 45)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '12px')
+            .style('fill', '#7f8c8d')
+            .text('Flow width shows tag usage strength in each category');
+
+        // Add legend
+        const legend = svg.append('g')
+            .attr('transform', `translate(${width + margin.left - 150}, ${margin.top + 30})`);
+
+        legend.append('text')
+            .attr('x', 0)
+            .attr('y', 0)
+            .style('font-size', '12px')
+            .style('font-weight', 'bold')
+            .style('fill', '#333')
+            .text('Flow Legend:');
+
+        legend.append('rect')
+            .attr('x', 0)
+            .attr('y', 15)
+            .attr('width', 3)
+            .attr('height', 12)
+            .attr('fill', '#666');
+
+        legend.append('text')
+            .attr('x', 8)
+            .attr('y', 26)
+            .style('font-size', '10px')
+            .style('fill', '#333')
+            .text('Weak (1-4)');
+
+        legend.append('rect')
+            .attr('x', 0)
+            .attr('y', 35)
+            .attr('width', 6)
+            .attr('height', 12)
+            .attr('fill', '#666');
+
+        legend.append('text')
+            .attr('x', 8)
+            .attr('y', 46)
+            .style('font-size', '10px')
+            .style('fill', '#333')
+            .text('Medium (5-9)');
+
+        legend.append('rect')
+            .attr('x', 0)
+            .attr('y', 55)
+            .attr('width', 12)
+            .attr('height', 12)
+            .attr('fill', '#666');
+
+        legend.append('text')
+            .attr('x', 15)
+            .attr('y', 66)
+            .style('font-size', '10px')
+            .style('fill', '#333')
+            .text('Strong (10+)');
+
+        // Add instructions
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', height + margin.top + margin.bottom - 15)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '11px')
+            .style('fill', '#999')
+            .text(`🔗 ${data.stats.totalLinks} connections • Hover for details • Flow thickness = usage strength`);
+    }
 
         const svg = d3.select(container)
             .append('svg')

@@ -164,14 +164,22 @@
             </div>
 
             <div id="tag-evolution" class="visualization">
-                <h2>🏷️ Tag Evolution Timeline</h2>
+                <h2>🏷️ Tag Analysis Dashboard</h2>
                 <div class="chart-description">
-                    <p><strong>Purpose:</strong> Track how popular tags change over time to identify trending hashtags and content themes.</p>
-                    <p><strong>How to Read:</strong> Each colored line represents a tag's popularity. Higher peaks mean more usage. Click legend items to show/hide specific tags.</p>
+                    <p><strong>Purpose:</strong> Analyze tag performance and trends using different visualization approaches to find the best insights.</p>
+                    <p><strong>How to Read:</strong> Choose between Racing Bars (competition), Momentum Chart (trends), or Flow Diagram (relationships).</p>
                 </div>
                 <div class="filter-controls">
                     <div class="control-group">
-                        <label for="tag-view-filter">Timeline Scope:</label>
+                        <label for="tag-chart-type">Chart Type:</label>
+                        <select id="tag-chart-type">
+                            <option value="racing-bars" selected>🏃‍♂️ Tag Racing Bars</option>
+                            <option value="momentum-chart">📈 Tag Momentum Chart</option>
+                            <option value="flow-diagram">🌊 Tag Flow Diagram</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="tag-view-filter">Data Scope:</label>
                         <select id="tag-view-filter">
                             <option value="overview" selected>All Popular Tags (15 tags)</option>
                             <option value="top-tags">Top Performers Only (10 tags)</option>
@@ -179,7 +187,7 @@
                         </select>
                     </div>
                     <div class="control-group">
-                        <label style="color: #7f8c8d; font-size: 12px;">💡 <strong>Tip:</strong> Use trending tags in your content to ride the wave of popular topics</label>
+                        <label style="color: #7f8c8d; font-size: 12px;">💡 <strong>Tip:</strong> Try different chart types to find the clearest view of tag trends</label>
                     </div>
                 </div>
                 <div class="chart-container" style="min-height: 500px;"></div>
