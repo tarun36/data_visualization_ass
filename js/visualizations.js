@@ -1495,7 +1495,7 @@ class Visualizations {
             .style('font-size', width > 600 ? '18px' : '16px')
             .style('font-weight', 'bold')
             .style('fill', '#2c3e50')
-            .text('🏃‍♂️ Tag Racing Competition');
+            .text('🏆 Tag Racing Competition');
 
         const periodTitle = svg.append('text')
             .attr('x', (width + margin.left + margin.right) / 2)
@@ -1640,7 +1640,7 @@ class Visualizations {
             .attr('text-anchor', 'middle')
             .style('font-size', '11px')
             .style('fill', '#999')
-            .text('🎯 Watch tags compete over time • Use controls to navigate periods • Auto-play to see the race');
+            .text('🏆 Watch the tag competition unfold • Navigate periods to see winners • Auto-play for the full race');
     }
 
     // 8b. Tag Momentum Chart - Stacked area showing trends  
