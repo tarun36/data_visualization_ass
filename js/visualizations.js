@@ -1473,7 +1473,8 @@ class Visualizations {
                             <strong>Avg Views per Use:</strong> ${Math.round(d.totalViews / d.count).toLocaleString()}
                         </div>
                         <div style="color: #7f8c8d; font-size: 11px; margin-top: 6px;">
-                            Period: ${data.racingData[currentPeriodIndex].period}
+                            Period: ${data.racingData[currentPeriodIndex].period}<br/>
+                            Region: ${data.countryName || 'Global'}
                         </div>
                     `)
                     .style('left', (event.pageX + 15) + 'px')
@@ -1553,7 +1554,7 @@ class Visualizations {
                             <strong>Performance:</strong> ${Math.round(d.totalViews / d.count).toLocaleString()} avg views/use
                         </div>
                         <div style="color: #7f8c8d; font-size: 11px; margin-top: 6px;">
-                            💡 ${d.tag.length > 15 ? 'Full tag: ' + d.tag : 'Click to see competition details'}
+                            💡 ${d.tag.length > 15 ? 'Full tag: ' + d.tag : 'Region: ' + (data.countryName || 'Global')}
                         </div>
                     `)
                     .style('left', (event.pageX + 15) + 'px')
@@ -1741,7 +1742,8 @@ class Visualizations {
                                 <strong>Avg Views per Use:</strong> ${Math.round(d.totalViews / d.count).toLocaleString()}
                             </div>
                             <div style="color: #7f8c8d; font-size: 11px; margin-top: 6px;">
-                                Period: ${currentData.period}
+                                Period: ${currentData.period}<br/>
+                                Region: ${data.countryName || 'Global'}
                             </div>
                         `)
                         .style('left', (event.pageX + 15) + 'px')
@@ -1808,7 +1810,7 @@ class Visualizations {
                                 <strong>Performance:</strong> ${Math.round(d.totalViews / d.count).toLocaleString()} avg views/use
                             </div>
                             <div style="color: #7f8c8d; font-size: 11px; margin-top: 6px;">
-                                💡 ${d.tag.length > 15 ? 'Full tag: ' + d.tag : 'Period: ' + currentData.period}
+                                💡 ${d.tag.length > 15 ? 'Full tag: ' + d.tag : 'Region: ' + (data.countryName || 'Global')}
                             </div>
                         `)
                         .style('left', (event.pageX + 15) + 'px')

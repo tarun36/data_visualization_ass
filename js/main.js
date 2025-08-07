@@ -20,6 +20,10 @@ class YouTubeDataVisualization {
             if (success) {
                 this.isDataLoaded = true;
                 this.hideLoadingMessage();
+                
+                // Populate country dropdown
+                this.populateCountryDropdown();
+                
                 this.renderOverviewStats();
                 console.log('Application initialized successfully');
                 
@@ -631,9 +635,14 @@ class YouTubeDataVisualization {
         try {
             // Get current filter values
             const viewFilter = document.getElementById('tag-view-filter')?.value || 'overview';
+            const countryFilter = document.getElementById('tag-country-filter')?.value || 'global';
             
             // Get racing data for the competition
-            const tagData = this.dataLoader.getTagRacingData(viewFilter);
+            const tagData = this.dataLoader.getTagRacingData(viewFilter, countryFilter);
+            
+            // Add country info to data for visualization
+            tagData.selectedCountry = countryFilter;
+            tagData.countryName = countryFilter === 'global' ? 'Global' : this.dataLoader.getCountryName(countryFilter);
             
             this.visualizations.createTagAnalysisChart(tagData, container, 'racing-bars');
         } catch (error) {
@@ -644,7 +653,18 @@ class YouTubeDataVisualization {
 
     // Setup tag racing competition event listeners
     setupTagEvolutionEventListeners() {
+        const countryFilter = document.getElementById('tag-country-filter');
         const viewFilter = document.getElementById('tag-view-filter');
+        
+        // Country filter change handler
+        if (countryFilter) {
+            countryFilter.addEventListener('change', () => {
+                const container = document.querySelector('#tag-evolution .chart-container');
+                if (container) {
+                    this.renderTagEvolution(container);
+                }
+            });
+        }
         
         // View filter change handler  
         if (viewFilter) {
@@ -654,6 +674,27 @@ class YouTubeDataVisualization {
                     this.renderTagEvolution(container);
                 }
             });
+        }
+    }
+
+    // Populate country dropdown for tag racing
+    populateCountryDropdown() {
+        const countrySelect = document.getElementById('tag-country-filter');
+        if (countrySelect && this.dataLoader) {
+            const countries = this.dataLoader.getAvailableCountries();
+            
+            // Clear existing options except the first one (Global)
+            countrySelect.innerHTML = '<option value="global" selected>🌍 Global (All Countries)</option>';
+            
+            // Add country options
+            countries.slice(1).forEach(country => {
+                const option = document.createElement('option');
+                option.value = country.code;
+                option.textContent = country.name;
+                countrySelect.appendChild(option);
+            });
+            
+            console.log(`Populated country dropdown with ${countries.length} options`);
         }
     }
 

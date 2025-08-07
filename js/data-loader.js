@@ -816,13 +816,21 @@ class DataLoader {
     }
 
     // Get tag racing bar data - shows tag competition over time periods
-    getTagRacingData(filterType = 'overview') {
+    getTagRacingData(filterType = 'overview', selectedCountry = 'global') {
         try {
             const tagPeriodData = {};
             const periods = new Set();
             
-            // Process all videos to build tag data by time periods (weekly)
-            Object.values(this.videoData).flat().forEach(video => {
+            // Determine data source based on country selection
+            let videosToProcess;
+            if (selectedCountry === 'global') {
+                videosToProcess = Object.values(this.videoData).flat();
+            } else {
+                videosToProcess = this.videoData[selectedCountry] || [];
+            }
+            
+            // Process videos to build tag data by time periods (weekly)
+            videosToProcess.forEach(video => {
                 if (video && video.tags && video.trending_date_parsed) {
                     const trendingDate = video.trending_date_parsed;
                     const weekNumber = Math.floor((trendingDate.getTime() - new Date(trendingDate.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
@@ -921,7 +929,40 @@ class DataLoader {
         }
     }
 
+    // Get available countries for dropdown
+    getAvailableCountries() {
+        const countries = Object.keys(this.videoData).filter(country => 
+            this.videoData[country] && this.videoData[country].length > 0
+        );
+        
+        // Add global option and sort countries
+        const countryOptions = [
+            { code: 'global', name: '🌍 Global (All Countries)' },
+            ...countries.sort().map(code => ({
+                code: code,
+                name: this.getCountryName(code)
+            }))
+        ];
+        
+        return countryOptions;
+    }
 
+    // Get country display name
+    getCountryName(code) {
+        const countryNames = {
+            'US': '🇺🇸 United States',
+            'CA': '🇨🇦 Canada', 
+            'GB': '🇬🇧 United Kingdom',
+            'DE': '🇩🇪 Germany',
+            'FR': '🇫🇷 France',
+            'IN': '🇮🇳 India',
+            'JP': '🇯🇵 Japan',
+            'KR': '🇰🇷 South Korea',
+            'MX': '🇲🇽 Mexico',
+            'RU': '🇷🇺 Russia'
+        };
+        return countryNames[code] || `🏳️ ${code}`;
+    }
 
     // Initialize all data loading
     async init(countriesToLoad = ['US', 'CA', 'GB', 'DE', 'FR', 'IN', 'JP', 'KR', 'MX', 'RU']) {

@@ -166,11 +166,17 @@
             <div id="tag-evolution" class="visualization">
                 <h2>🏆 Tag Racing Competition</h2>
                 <div class="chart-description">
-                    <p><strong>Purpose:</strong> Watch tags compete for popularity over time periods. Perfect solution for avoiding line tangles with clear competition rankings.</p>
-                    <p><strong>How to Read:</strong> Horizontal bars show tag usage. Longer bars = more popular tags. Use controls to navigate time periods and watch the competition unfold.</p>
+                    <p><strong>Purpose:</strong> Watch tags compete for popularity over time periods by country. Perfect solution for avoiding line tangles with clear competition rankings.</p>
+                    <p><strong>How to Read:</strong> Select a country to see regional tag trends, or choose Global for worldwide patterns. Horizontal bars show tag usage. Longer bars = more popular tags.</p>
                 </div>
                 <div class="filter-controls">
-
+                    <div class="control-group">
+                        <label for="tag-country-filter">Country:</label>
+                        <select id="tag-country-filter">
+                            <option value="global" selected>🌍 Global (All Countries)</option>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                    </div>
                     <div class="control-group">
                         <label for="tag-view-filter">Data Scope:</label>
                         <select id="tag-view-filter">
