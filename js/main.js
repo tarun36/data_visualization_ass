@@ -714,7 +714,7 @@ class YouTubeDataVisualization {
                         countries.forEach(countryCode => {
                             const option = document.createElement('option');
                             option.value = countryCode;
-                            option.textContent = this.getCountryDisplayName(countryCode);
+                            option.textContent = this.dataLoader.getCountryName(countryCode);
                             selectElement.appendChild(option);
                         });
                     } else {
