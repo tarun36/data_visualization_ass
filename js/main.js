@@ -88,6 +88,9 @@ class YouTubeDataVisualization {
         
         // Setup engagement event listeners
         this.setupEngagementEventListeners();
+        
+        // Setup new chart event listeners
+        this.setupTagEvolutionEventListeners();
     }
 
     // Enable/disable navigation
@@ -193,7 +196,13 @@ class YouTubeDataVisualization {
                     this.renderEngagement(container);
                     break;
 
+                case 'publishing-timing':
+                    this.renderPublishingTiming(container);
+                    break;
 
+                case 'tag-evolution':
+                    this.renderTagEvolution(container);
+                    break;
 
                 default:
                     console.warn(`Unknown visualization type: ${vizType}`);
@@ -606,8 +615,46 @@ class YouTubeDataVisualization {
         }
     }
 
+    // Render Publishing Timing Strategy
+    renderPublishingTiming(container) {
+        try {
+            const timingData = this.dataLoader.getPublishingTimingData();
+            this.visualizations.createPublishingTimingHeatmap(timingData, container);
+        } catch (error) {
+            console.error('Error rendering Publishing Timing Strategy:', error);
+            this.showVisualizationError(container, `Error rendering Publishing Timing Strategy: ${error.message}`);
+        }
+    }
 
+    // Render Tag Evolution Timeline
+    renderTagEvolution(container) {
+        try {
+            // Get current filter values
+            const viewFilter = document.getElementById('tag-view-filter')?.value || 'overview';
+            
+            // Get tag evolution timeline data
+            const tagData = this.dataLoader.getTagEvolutionData(viewFilter);
+            
+            this.visualizations.createTagEvolutionTimeline(tagData, container);
+        } catch (error) {
+            console.error('Error rendering Tag Evolution Timeline:', error);
+            this.showVisualizationError(container, `Error rendering Tag Evolution Timeline: ${error.message}`);
+        }
+    }
 
+    // Setup tag evolution event listeners
+    setupTagEvolutionEventListeners() {
+        const viewFilter = document.getElementById('tag-view-filter');
+        
+        if (viewFilter) {
+            viewFilter.addEventListener('change', () => {
+                const container = document.querySelector('#tag-evolution .chart-container');
+                if (container) {
+                    this.renderTagEvolution(container);
+                }
+            });
+        }
+    }
 
 }
 

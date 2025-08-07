@@ -6,6 +6,7 @@
     <title>YouTube Trending Data Visualization</title>
     <link rel="stylesheet" href="css/main.css">
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -23,6 +24,8 @@
             <button class="nav-btn" data-viz="heatmap">Country Heatmap</button>
             <button class="nav-btn" data-viz="treemap">Channel Treemap</button>
             <button class="nav-btn" data-viz="engagement">Engagement Breakdown</button>
+            <button class="nav-btn" data-viz="publishing-timing">📅 Publishing Strategy</button>
+            <button class="nav-btn" data-viz="tag-evolution">🏷️ Tag Trends</button>
 
         </nav>
 
@@ -144,6 +147,42 @@
                     </div>
                 </div>
                 <div class="chart-container"></div>
+            </div>
+
+            <div id="publishing-timing" class="visualization">
+                <h2>📅 Publishing Timing Strategy</h2>
+                <div class="chart-description">
+                    <p><strong>Purpose:</strong> Discover the optimal times to publish your videos for maximum engagement and success.</p>
+                    <p><strong>How to Read:</strong> Darker colors indicate higher success rates. Find the best day-hour combinations for your content strategy.</p>
+                </div>
+                <div class="filter-controls">
+                    <div class="control-group">
+                        <label style="color: #7f8c8d; font-size: 12px;">💡 <strong>Tip:</strong> Schedule your uploads during peak success times (darker areas) to maximize views and engagement</label>
+                    </div>
+                </div>
+                <div class="chart-container" style="min-height: 450px;"></div>
+            </div>
+
+            <div id="tag-evolution" class="visualization">
+                <h2>🏷️ Tag Evolution Timeline</h2>
+                <div class="chart-description">
+                    <p><strong>Purpose:</strong> Track how popular tags change over time to identify trending hashtags and content themes.</p>
+                    <p><strong>How to Read:</strong> Each colored line represents a tag's popularity. Higher peaks mean more usage. Click legend items to show/hide specific tags.</p>
+                </div>
+                <div class="filter-controls">
+                    <div class="control-group">
+                        <label for="tag-view-filter">Timeline Scope:</label>
+                        <select id="tag-view-filter">
+                            <option value="overview" selected>All Popular Tags (15 tags)</option>
+                            <option value="top-tags">Top Performers Only (10 tags)</option>
+                            <option value="trending">Highly Trending (8 tags)</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label style="color: #7f8c8d; font-size: 12px;">💡 <strong>Tip:</strong> Use trending tags in your content to ride the wave of popular topics</label>
+                    </div>
+                </div>
+                <div class="chart-container" style="min-height: 500px;"></div>
             </div>
 
         </main>

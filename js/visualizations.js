@@ -1209,6 +1209,555 @@ class Visualizations {
                 return '';
             });
     }
+
+    // 7. Publishing Timing Heatmap - When to Publish for Success
+    createPublishingTimingHeatmap(data, container) {
+        this.clearVisualization(container);
+        
+        if (!data || !data.data || data.data.length === 0) {
+            container.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; background-color: #f8f9fa; border-radius: 5px;">
+                    <div style="text-align: center; color: #6c757d;">
+                        <h4>No Timing Data Available</h4>
+                        <p>Waiting for video data to load...</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        const margin = { top: 80, right: 80, bottom: 120, left: 100 };
+        const containerRect = container.getBoundingClientRect();
+        const width = containerRect.width - margin.left - margin.right;
+        const height = containerRect.height - margin.top - margin.bottom;
+        
+        const cellWidth = width / 24; // 24 hours
+        const cellHeight = height / 7; // 7 days
+
+        const svg = d3.select(container)
+            .append('svg')
+            .attr('width', width + margin.left + margin.right)
+            .attr('height', height + margin.top + margin.bottom);
+
+        const chartGroup = svg.append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        // Color scale for success rate (0-100%)
+        const colorScale = d3.scaleSequential(d3.interpolateYlOrRd)
+            .domain([0, 100]);
+
+        // Create heatmap cells
+        const cells = chartGroup.selectAll('.timing-cell')
+            .data(data.data)
+            .enter().append('rect')
+            .attr('class', 'timing-cell')
+            .attr('x', d => d.hour * cellWidth)
+            .attr('y', d => d.day * cellHeight)
+            .attr('width', cellWidth - 1)
+            .attr('height', cellHeight - 1)
+            .attr('fill', d => d.count > 0 ? colorScale(d.successRate) : '#f0f0f0')
+            .attr('stroke', '#fff')
+            .attr('stroke-width', 1)
+            .style('cursor', 'pointer')
+            .on('mouseover', (event, d) => {
+                this.tooltip.style('opacity', .9)
+                    .html(`
+                        <strong>${d.dayName} ${d.hour}:00</strong><br/>
+                        Videos Published: ${d.count}<br/>
+                        Avg Views: ${d.avgViews.toLocaleString()}<br/>
+                        Avg Likes: ${d.avgLikes.toLocaleString()}<br/>
+                        Success Score: ${d.successRate.toFixed(1)}%
+                    `)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+            })
+            .on('mouseout', () => {
+                this.tooltip.style('opacity', 0);
+            });
+
+        // Add day labels (Y-axis)
+        chartGroup.selectAll('.day-label')
+            .data(data.days)
+            .enter().append('text')
+            .attr('class', 'day-label')
+            .attr('x', -10)
+            .attr('y', (d, i) => i * cellHeight + cellHeight/2)
+            .attr('text-anchor', 'end')
+            .attr('alignment-baseline', 'middle')
+            .style('font-size', '12px')
+            .style('font-weight', 'bold')
+            .style('fill', '#333')
+            .text(d => d.substring(0, 3)); // Mon, Tue, etc.
+
+        // Add hour labels (X-axis)
+        const hours = Array.from({length: 24}, (_, i) => i);
+        chartGroup.selectAll('.hour-label')
+            .data(hours)
+            .enter().append('text')
+            .attr('class', 'hour-label')
+            .attr('x', d => d * cellWidth + cellWidth/2)
+            .attr('y', -10)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '10px')
+            .style('fill', '#666')
+            .text(d => d % 6 === 0 ? `${d}:00` : ''); // Show every 6 hours
+
+        // Add title with enhanced styling
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', 25)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '18px')
+            .style('font-weight', 'bold')
+            .style('fill', '#2c3e50')
+            .text('📅 Publishing Timing Strategy');
+
+        // Add subtitle
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', 45)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '12px')
+            .style('fill', '#7f8c8d')
+            .text('Optimal times to publish content for maximum engagement');
+
+        // Add legend
+        const legendWidth = 200;
+        const legendHeight = 15;
+        const legend = svg.append('g')
+            .attr('transform', `translate(${width + margin.left - legendWidth}, ${margin.top + height + 25})`);
+
+        const legendScale = d3.scaleLinear()
+            .domain([0, 100])
+            .range([0, legendWidth]);
+
+        const legendAxis = d3.axisBottom(legendScale)
+            .ticks(5)
+            .tickFormat(d => `${d.toFixed(0)}%`);
+
+        // Create gradient for legend
+        const gradient = svg.append('defs')
+            .append('linearGradient')
+            .attr('id', 'timing-legend-gradient');
+
+        gradient.selectAll('stop')
+            .data(d3.range(0, 1.01, 0.1))
+            .enter().append('stop')
+            .attr('offset', d => `${d * 100}%`)
+            .attr('stop-color', d => colorScale(d * 100));
+
+        legend.append('rect')
+            .attr('width', legendWidth)
+            .attr('height', legendHeight)
+            .attr('fill', 'url(#timing-legend-gradient)')
+            .attr('stroke', '#333')
+            .attr('stroke-width', 1);
+
+        legend.append('g')
+            .attr('transform', `translate(0, ${legendHeight})`)
+            .call(legendAxis);
+
+        legend.append('text')
+            .attr('x', legendWidth / 2)
+            .attr('y', -5)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '12px')
+            .style('font-weight', 'bold')
+            .text('Success Rate');
+
+        // Add instructions
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', height + margin.top + margin.bottom - 25)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '11px')
+            .style('fill', '#999')
+            .text('💡 Hover cells to see publishing stats • Darker colors = better performance');
+    }
+
+    // 8. Tag Evolution Timeline - Tag Trends Over Time
+    createTagEvolutionTimeline(data, container) {
+        this.clearVisualization(container);
+        
+        if (!data || !data.timelineData || data.timelineData.length === 0) {
+            container.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; background-color: #f8f9fa; border-radius: 5px;">
+                    <div style="text-align: center; color: #6c757d;">
+                        <h4>No Tag Timeline Data Available</h4>
+                        <p>Waiting for video tag data to load...</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        const margin = { top: 80, right: 150, bottom: 80, left: 100 };
+        const containerRect = container.getBoundingClientRect();
+        const width = containerRect.width - margin.left - margin.right;
+        const height = containerRect.height - margin.top - margin.bottom;
+
+        const svg = d3.select(container)
+            .append('svg')
+            .attr('width', width + margin.left + margin.right)
+            .attr('height', height + margin.top + margin.bottom);
+
+        const chartGroup = svg.append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        // Extract all dates for the timeline
+        const allDates = data.timelineData[0]?.timeline.map(d => d.date) || [];
+        
+        if (allDates.length === 0) {
+            container.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; background-color: #f8f9fa; border-radius: 5px;">
+                    <div style="text-align: center; color: #6c757d;">
+                        <h4>No Timeline Data Available</h4>
+                        <p>No tag trends found for the selected filter criteria.</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        // Scales
+        const xScale = d3.scaleTime()
+            .domain(d3.extent(allDates))
+            .range([0, width]);
+
+        const maxCount = d3.max(data.timelineData, tagData => 
+            d3.max(tagData.timeline, d => d.count)) || 10;
+        
+        const yScale = d3.scaleLinear()
+            .domain([0, maxCount])
+            .range([height, 0]);
+
+        const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+
+        // Create line generator
+        const line = d3.line()
+            .x(d => xScale(d.date))
+            .y(d => yScale(d.count))
+            .curve(d3.curveMonotoneX);
+
+        // Add grid lines
+        chartGroup.append('g')
+            .attr('class', 'grid')
+            .attr('transform', `translate(0,${height})`)
+            .call(d3.axisBottom(xScale)
+                .tickSize(-height)
+                .tickFormat('')
+            )
+            .style('stroke-dasharray', '3,3')
+            .style('opacity', 0.3);
+
+        chartGroup.append('g')
+            .attr('class', 'grid')
+            .call(d3.axisLeft(yScale)
+                .tickSize(-width)
+                .tickFormat('')
+            )
+            .style('stroke-dasharray', '3,3')
+            .style('opacity', 0.3);
+
+        // Create tag lines
+        const tagLines = chartGroup.selectAll('.tag-line')
+            .data(data.timelineData)
+            .enter().append('g')
+            .attr('class', 'tag-line');
+
+        // Add the lines
+        tagLines.append('path')
+            .attr('fill', 'none')
+            .attr('stroke', (d, i) => colorScale(i))
+            .attr('stroke-width', 2.5)
+            .attr('opacity', 0.8)
+            .attr('d', d => line(d.timeline))
+            .style('cursor', 'pointer');
+
+        // Add circles for data points
+        tagLines.selectAll('.data-point')
+            .data(d => d.timeline.filter(point => point.count > 0))
+            .enter().append('circle')
+            .attr('class', 'data-point')
+            .attr('cx', d => xScale(d.date))
+            .attr('cy', d => yScale(d.count))
+            .attr('r', 4)
+            .attr('fill', (d, i, nodes) => {
+                const parentIndex = d3.select(nodes[i].parentNode).datum();
+                return colorScale(data.timelineData.indexOf(parentIndex));
+            })
+            .attr('stroke', 'white')
+            .attr('stroke-width', 2)
+            .style('cursor', 'pointer')
+            .on('mouseover', (event, d) => {
+                const parentData = d3.select(event.target.parentNode).datum();
+                this.tooltip.style('opacity', .9)
+                    .html(`
+                        <strong>${parentData.tag}</strong><br/>
+                        Date: ${d.date.toLocaleDateString()}<br/>
+                        Usage Count: ${d.count}<br/>
+                        Total Views: ${d.totalViews.toLocaleString()}<br/>
+                        Avg Views: ${d.avgViews.toLocaleString()}
+                    `)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+            })
+            .on('mouseout', () => {
+                this.tooltip.style('opacity', 0);
+            });
+
+        // Add axes with smart date formatting
+        const numDates = allDates.length;
+        const maxTicks = Math.min(10, Math.floor(width / 80));
+        
+        chartGroup.append('g')
+            .attr('transform', `translate(0,${height})`)
+            .call(d3.axisBottom(xScale)
+                .ticks(maxTicks)
+                .tickFormat(d3.timeFormat(numDates > 30 ? '%b' : '%b %d')))
+            .selectAll('text')
+            .style('text-anchor', 'end')
+            .attr('dx', '-.8em')
+            .attr('dy', '.15em')
+            .attr('transform', 'rotate(-45)')
+            .style('font-size', '10px');
+
+        chartGroup.append('g')
+            .call(d3.axisLeft(yScale));
+
+        // Add axis labels
+        svg.append('text')
+            .attr('transform', 'rotate(-90)')
+            .attr('y', 20)
+            .attr('x', -(height + margin.top) / 2)
+            .style('text-anchor', 'middle')
+            .style('font-size', '12px')
+            .style('fill', '#666')
+            .text('Tag Usage Count');
+
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', height + margin.top + margin.bottom - 5)
+            .style('text-anchor', 'middle')
+            .style('font-size', '12px')
+            .style('fill', '#666')
+            .text('Timeline');
+
+        // Add title
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', 25)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '18px')
+            .style('font-weight', 'bold')
+            .style('fill', '#2c3e50')
+            .text('🏷️ Tag Evolution Timeline');
+
+        // Add subtitle
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', 45)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '12px')
+            .style('fill', '#7f8c8d')
+            .text('Track trending hashtags and content themes over time');
+
+        // Create interactive legend with better positioning
+        const legendX = Math.min(width + margin.left + 10, width + margin.left + margin.right - 130);
+        const legend = svg.append('g')
+            .attr('transform', `translate(${legendX}, ${margin.top})`);
+
+        // Limit legend items to prevent overflow
+        const maxLegendItems = Math.floor((height - 40) / 20);
+        const legendData = data.timelineData.slice(0, maxLegendItems);
+
+        const legendItems = legend.selectAll('.legend-item')
+            .data(legendData)
+            .enter().append('g')
+            .attr('class', 'legend-item')
+            .attr('transform', (d, i) => `translate(0, ${i * 20})`)
+            .style('cursor', 'pointer')
+            .on('click', function(event, d) {
+                const legendItem = d3.select(this);
+                const isInactive = legendItem.classed('inactive');
+                legendItem.classed('inactive', !isInactive);
+                
+                const tagIndex = data.timelineData.indexOf(d);
+                const line = chartGroup.selectAll('.tag-line').filter((lineData, i) => i === tagIndex);
+                const points = line.selectAll('.data-point');
+                
+                if (isInactive) {
+                    // REACTIVATE - Show the line
+                    line.select('path')
+                        .style('opacity', 0.8)
+                        .style('stroke-width', 2.5);
+                    points.style('opacity', 1);
+                    
+                    // Update legend visuals - ACTIVE STATE
+                    legendItem.select('.legend-background')
+                        .style('fill', 'none')
+                        .style('stroke', 'none');
+                    
+                    legendItem.select('.legend-line')
+                        .style('opacity', 1)
+                        .attr('stroke-width', 4);
+                    
+                    legendItem.select('.legend-text')
+                        .style('fill', '#333')
+                        .style('font-weight', 'bold');
+                    
+                    legendItem.select('.legend-status')
+                        .attr('fill', '#4CAF50')
+                        .attr('stroke', '#2E7D32');
+                        
+                } else {
+                    // DEACTIVATE - Hide the line
+                    line.select('path')
+                        .style('opacity', 0.1)
+                        .style('stroke-width', 1);
+                    points.style('opacity', 0.1);
+                    
+                    // Update legend visuals - INACTIVE STATE
+                    legendItem.select('.legend-background')
+                        .style('fill', '#ffebee')
+                        .style('stroke', '#f44336')
+                        .style('stroke-width', 1);
+                    
+                    legendItem.select('.legend-line')
+                        .style('opacity', 0.3)
+                        .attr('stroke-width', 2);
+                    
+                    legendItem.select('.legend-text')
+                        .style('fill', '#999')
+                        .style('font-weight', 'normal');
+                    
+                    legendItem.select('.legend-status')
+                        .attr('fill', '#f44336')
+                        .attr('stroke', '#d32f2f');
+                }
+            })
+            .on('mouseover', function(event, d) {
+                const legendItem = d3.select(this);
+                const isInactive = legendItem.classed('inactive');
+                
+                if (!isInactive) {
+                    const tagIndex = data.timelineData.indexOf(d);
+                    const line = chartGroup.selectAll('.tag-line').filter((lineData, i) => i === tagIndex);
+                    line.select('path').style('stroke-width', 5);
+                    legendItem.select('.legend-background')
+                        .style('fill', '#e3f2fd')
+                        .style('stroke', '#2196F3')
+                        .style('stroke-width', 2);
+                    legendItem.select('.legend-line').attr('stroke-width', 5);
+                } else {
+                    legendItem.select('.legend-background')
+                        .style('fill', '#f3e5f5')
+                        .style('stroke', '#9C27B0');
+                }
+            })
+            .on('mouseout', function(event, d) {
+                const legendItem = d3.select(this);
+                const isInactive = legendItem.classed('inactive');
+                const tagIndex = data.timelineData.indexOf(d);
+                const line = chartGroup.selectAll('.tag-line').filter((lineData, i) => i === tagIndex);
+                
+                if (!isInactive) {
+                    line.select('path').style('stroke-width', 2.5);
+                    legendItem.select('.legend-background')
+                        .style('fill', 'none')
+                        .style('stroke', 'none');
+                    legendItem.select('.legend-line').attr('stroke-width', 4);
+                } else {
+                    legendItem.select('.legend-background')
+                        .style('fill', '#ffebee')
+                        .style('stroke', '#f44336');
+                }
+            });
+
+        // Add background rectangles for better click interaction
+        legendItems.append('rect')
+            .attr('class', 'legend-background')
+            .attr('x', -5)
+            .attr('y', -10)
+            .attr('width', 125)
+            .attr('height', 18)
+            .attr('fill', 'none')
+            .attr('stroke', 'none')
+            .attr('rx', 4);
+
+        // Add colored lines that match chart lines
+        legendItems.append('line')
+            .attr('class', 'legend-line')
+            .attr('x1', 0)
+            .attr('x2', 15)
+            .attr('y1', 0)
+            .attr('y2', 0)
+            .attr('stroke', (d, i) => {
+                const originalIndex = data.timelineData.indexOf(d);
+                return colorScale(originalIndex);
+            })
+            .attr('stroke-width', 4);
+
+        // Legend title
+        legend.append('text')
+            .attr('x', 0)
+            .attr('y', -10)
+            .style('font-size', '12px')
+            .style('font-weight', 'bold')
+            .style('fill', '#333')
+            .text('📝 Tags (Click to toggle):');
+
+        // Add tag text with better styling
+        legendItems.append('text')
+            .attr('class', 'legend-text')
+            .attr('x', 20)
+            .attr('y', 0)
+            .attr('dy', '0.35em')
+            .style('font-size', '12px')
+            .style('font-weight', 'bold')
+            .style('fill', '#333')
+            .style('pointer-events', 'none')
+            .text(d => d.tag.length > 10 ? d.tag.substring(0, 10) + '...' : d.tag);
+
+        // Add status indicator (active/inactive)
+        legendItems.append('circle')
+            .attr('class', 'legend-status')
+            .attr('cx', 110)
+            .attr('cy', 0)
+            .attr('r', 4)
+            .attr('fill', '#4CAF50')
+            .attr('stroke', '#2E7D32')
+            .attr('stroke-width', 1)
+            .style('opacity', 1);
+
+        // Add note if some tags are hidden
+        if (data.timelineData.length > legendData.length) {
+            legend.append('text')
+                .attr('x', 0)
+                .attr('y', legendData.length * 20 + 15)
+                .style('font-size', '10px')
+                .style('fill', '#999')
+                .text(`... and ${data.timelineData.length - legendData.length} more`);
+        }
+
+        // Legend instructions
+        legend.append('text')
+            .attr('x', 0)
+            .attr('y', legendData.length * 20 + (data.timelineData.length > legendData.length ? 35 : 20))
+            .style('font-size', '10px')
+            .style('fill', '#666')
+            .style('font-style', 'italic')
+            .text('🔵 Active • 🔴 Hidden • Hover for preview');
+
+        // Add stats
+        svg.append('text')
+            .attr('x', (width + margin.left + margin.right) / 2)
+            .attr('y', height + margin.top + margin.bottom - 25)
+            .attr('text-anchor', 'middle')
+            .style('font-size', '11px')
+            .style('fill', '#999')
+            .text(`📊 ${data.stats.totalTags} tags tracked • ${data.stats.totalDates} days • Total usage: ${data.stats.totalUsage} • Click legend to toggle`);
+    }
 }
 
 // Create global instance for export functions
