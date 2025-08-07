@@ -240,7 +240,7 @@ class YouTubeDataVisualization {
         countryFilter.appendChild(allOption);
 
         // Add country options
-        const countries = this.dataLoader.getAvailableCountries();
+        const countries = this.dataLoader.getAvailableCountriesLegacy();
         countries.forEach(country => {
             const option = document.createElement('option');
             option.value = country;
@@ -291,7 +291,7 @@ class YouTubeDataVisualization {
         timelineCountryFilter.appendChild(allOption);
 
         // Add country options
-        const countries = this.dataLoader.getAvailableCountries();
+        const countries = this.dataLoader.getAvailableCountriesLegacy();
         countries.forEach(country => {
             const option = document.createElement('option');
             option.value = country;
@@ -325,7 +325,7 @@ class YouTubeDataVisualization {
         scatterCountryFilter.appendChild(allOption);
 
         // Add country options
-        const countries = this.dataLoader.getAvailableCountries();
+        const countries = this.dataLoader.getAvailableCountriesLegacy();
         countries.forEach(country => {
             const option = document.createElement('option');
             option.value = country;
@@ -512,7 +512,7 @@ class YouTubeDataVisualization {
         treemapCountryFilter.appendChild(allOption);
 
         // Add country options
-        const countries = this.dataLoader.getAvailableCountries();
+        const countries = this.dataLoader.getAvailableCountriesLegacy();
         countries.forEach(country => {
             const option = document.createElement('option');
             option.value = country;
@@ -574,7 +574,7 @@ class YouTubeDataVisualization {
             countryFilter.innerHTML = '';
             countryFilter.appendChild(allOption);
 
-            const countries = this.dataLoader.getAvailableCountries();
+            const countries = this.dataLoader.getAvailableCountriesLegacy();
             countries.forEach(country => {
                 const option = document.createElement('option');
                 option.value = country;

@@ -1676,11 +1676,19 @@ class Visualizations {
             // Set up responsive dimensions with better margins
             const containerRect = container.getBoundingClientRect();
             const isMobile = containerRect.width < 768;
-            const margin = isMobile 
-                ? { top: 30, right: 80, bottom: 50, left: 80 }
-                : { top: 40, right: 120, bottom: 60, left: 120 };
-            const width = Math.max(isMobile ? 600 : 800, containerRect.width) - margin.left - margin.right;
-            const height = Math.max(500, Math.min(700, containerRect.height || 600)) - margin.top - margin.bottom;
+            const isTablet = containerRect.width < 1024;
+            
+            let margin;
+            if (isMobile) {
+                margin = { top: 40, right: 100, bottom: 60, left: 100 };
+            } else if (isTablet) {
+                margin = { top: 50, right: 130, bottom: 70, left: 130 };
+            } else {
+                margin = { top: 60, right: 150, bottom: 80, left: 150 };
+            }
+            
+            const width = Math.max(isMobile ? 500 : 700, containerRect.width - 40) - margin.left - margin.right;
+            const height = Math.max(isMobile ? 400 : 500, Math.min(650, (containerRect.height || 700) - 40)) - margin.top - margin.bottom;
 
             // Create SVG with proper spacing
             const svg = d3.select(container)

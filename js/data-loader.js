@@ -957,6 +957,13 @@ class DataLoader {
         return countryOptions;
     }
 
+    // Get available countries (legacy format for backward compatibility)
+    getAvailableCountriesLegacy() {
+        return Object.keys(this.videoData).filter(country => 
+            this.videoData[country] && this.videoData[country].length > 0
+        ).sort();
+    }
+
     // Get country display name
     getCountryName(code) {
         const countryNames = {

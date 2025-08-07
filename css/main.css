@@ -884,12 +884,13 @@ footer {
 
 /* Tag Flow container specific styling */
 #tag-flow .chart-container {
-    min-height: 600px;
+    min-height: 700px;
     background: #fafafa;
     border-radius: 8px;
     overflow: visible;
     position: relative;
     border: 1px solid rgba(0,0,0,0.05);
+    padding: 20px;
 }
 
 #tag-flow .chart-description {
@@ -951,8 +952,95 @@ footer {
     height: auto;
 }
 
+/* General chart container improvements */
+.chart-container {
+    min-height: 500px;
+    overflow: visible;
+    position: relative;
+    padding: 15px;
+    border-radius: 8px;
+    background: #fafafa;
+    border: 1px solid rgba(0,0,0,0.05);
+}
+
+/* Specific chart containers */
+#publishing-timing .chart-container {
+    min-height: 550px;
+}
+
+#tag-evolution .chart-container {
+    min-height: 520px;
+}
+
+#heatmap .chart-container {
+    min-height: 480px;
+}
+
+#treemap .chart-container {
+    min-height: 450px;
+}
+
+#engagement .chart-container {
+    min-height: 420px;
+}
+
+#timeline .chart-container {
+    min-height: 450px;
+}
+
+#scatter .chart-container {
+    min-height: 450px;
+}
+
+#pie-chart .chart-container {
+    min-height: 400px;
+}
+
+#bar-chart .chart-container {
+    min-height: 420px;
+}
+
+/* Footer styling */
+footer {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    color: white;
+    padding: 30px 20px;
+    margin-top: 40px;
+    text-align: center;
+    border-top: 3px solid #3498db;
+}
+
+footer p {
+    margin: 8px 0;
+    font-size: 14px;
+}
+
+.chart-authors {
+    margin-top: 20px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    backdrop-filter: blur(5px);
+}
+
+.chart-authors strong {
+    color: #3498db;
+    font-size: 16px;
+}
+
+.chart-authors p:not(:first-child) {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #ecf0f1;
+    margin: 5px 0;
+}
+
 /* Global responsive improvements for all charts */
 @media (max-width: 1024px) {
+    .container {
+        padding: 0 15px;
+    }
+    
     .visualization {
         margin: 15px 0;
     }
@@ -960,6 +1048,25 @@ footer {
     .chart-container {
         min-height: 400px;
         padding: 10px;
+    }
+    
+    /* Main header responsive */
+    header h1 {
+        font-size: 24px;
+        margin: 15px 0;
+    }
+    
+    /* Navigation responsive */
+    nav {
+        padding: 10px;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+    
+    .nav-btn {
+        margin: 2px;
+        padding: 8px 12px;
+        font-size: 13px;
     }
     
     .filter-controls {
@@ -1086,6 +1193,22 @@ footer {
     #tag-evolution .chart-container {
         min-height: 400px;
     }
+    
+    /* Footer responsive */
+    footer {
+        padding: 20px 15px;
+        margin-top: 30px;
+    }
+    
+    .chart-authors {
+        padding: 15px;
+        margin-top: 15px;
+    }
+    
+    .chart-authors p {
+        font-size: 12px;
+        line-height: 1.4;
+    }
 }
 
 @media (max-width: 480px) {
@@ -1129,6 +1252,8 @@ footer {
     /* Navigation for mobile */
     nav {
         padding: 8px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
     
     .nav-btn {
@@ -1136,6 +1261,23 @@ footer {
         padding: 6px 10px;
         margin: 1px;
         border-radius: 4px;
+        white-space: nowrap;
+    }
+    
+    /* Main header mobile */
+    header {
+        padding: 10px;
+    }
+    
+    header h1 {
+        font-size: 20px;
+        margin: 10px 0;
+        text-align: center;
+    }
+    
+    /* Container mobile */
+    .container {
+        padding: 0 10px;
     }
     
     /* Chart-specific mobile optimizations */
@@ -1160,5 +1302,30 @@ footer {
     
     .sankey-node text {
         font-size: 9px;
+    }
+    
+    /* Footer mobile responsive */
+    footer {
+        padding: 15px 10px;
+        margin-top: 20px;
+    }
+    
+    footer p {
+        font-size: 12px;
+        margin: 6px 0;
+    }
+    
+    .chart-authors {
+        padding: 10px;
+        margin-top: 10px;
+    }
+    
+    .chart-authors strong {
+        font-size: 14px;
+    }
+    
+    .chart-authors p:not(:first-child) {
+        font-size: 11px;
+        line-height: 1.3;
     }
 }
