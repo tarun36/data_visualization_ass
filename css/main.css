@@ -627,4 +627,48 @@ footer {
     box-shadow: 0 2px 4px rgba(23, 162, 184, 0.3);
     display: inline-block;
     margin-top: 5px;
+    max-width: 100%;
+    word-wrap: break-word;
+    text-align: center;
+}
+
+/* Chart container improvements */
+.chart-container {
+    position: relative;
+    overflow: visible;
+    min-height: 450px;
+}
+
+/* Responsive adjustments for chart descriptions */
+@media (max-width: 768px) {
+    .chart-description {
+        padding: 12px;
+        margin: 10px 0;
+        font-size: 14px;
+    }
+    
+    .chart-description p {
+        margin: 6px 0;
+    }
+    
+    .control-group label[style*="color: #7f8c8d"] {
+        padding: 6px 10px;
+        font-size: 12px;
+        text-align: left;
+    }
+    
+    .chart-container {
+        min-height: 400px;
+    }
+}
+
+@media (max-width: 480px) {
+    .chart-description {
+        padding: 10px;
+        font-size: 13px;
+    }
+    
+    .chart-container {
+        min-height: 350px;
+    }
 }

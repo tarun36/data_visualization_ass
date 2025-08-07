@@ -1229,7 +1229,8 @@ class Visualizations {
         const margin = { top: 80, right: 80, bottom: 120, left: 100 };
         const containerRect = container.getBoundingClientRect();
         const width = containerRect.width - margin.left - margin.right;
-        const height = containerRect.height - margin.top - margin.bottom;
+        const minHeight = 350; // Ensure minimum chart height
+        const height = Math.max(minHeight, containerRect.height - margin.top - margin.bottom);
         
         const cellWidth = width / 24; // 24 hours
         const cellHeight = height / 7; // 7 days
@@ -1289,8 +1290,9 @@ class Visualizations {
             .style('fill', '#333')
             .text(d => d.substring(0, 3)); // Mon, Tue, etc.
 
-        // Add hour labels (X-axis)
+        // Add hour labels (X-axis) with smart spacing
         const hours = Array.from({length: 24}, (_, i) => i);
+        const labelInterval = Math.max(1, Math.floor(24 / Math.max(8, width / 50))); // Dynamic spacing
         chartGroup.selectAll('.hour-label')
             .data(hours)
             .enter().append('text')
@@ -1298,16 +1300,16 @@ class Visualizations {
             .attr('x', d => d * cellWidth + cellWidth/2)
             .attr('y', -10)
             .attr('text-anchor', 'middle')
-            .style('font-size', '10px')
+            .style('font-size', cellWidth > 25 ? '10px' : '8px') // Responsive font size
             .style('fill', '#666')
-            .text(d => d % 6 === 0 ? `${d}:00` : ''); // Show every 6 hours
+            .text(d => d % labelInterval === 0 ? `${d}:00` : ''); // Smart labeling
 
         // Add title with enhanced styling
         svg.append('text')
             .attr('x', (width + margin.left + margin.right) / 2)
             .attr('y', 25)
             .attr('text-anchor', 'middle')
-            .style('font-size', '18px')
+            .style('font-size', width > 600 ? '18px' : '16px') // Responsive title size
             .style('font-weight', 'bold')
             .style('fill', '#2c3e50')
             .text('📅 Publishing Timing Strategy');
@@ -1321,11 +1323,12 @@ class Visualizations {
             .style('fill', '#7f8c8d')
             .text('Optimal times to publish content for maximum engagement');
 
-        // Add legend
-        const legendWidth = 200;
+        // Add legend with safe positioning
+        const legendWidth = Math.min(200, width * 0.4); // Responsive legend width
         const legendHeight = 15;
+        const legendX = Math.max(20, width + margin.left - legendWidth); // Prevent overflow
         const legend = svg.append('g')
-            .attr('transform', `translate(${width + margin.left - legendWidth}, ${margin.top + height + 25})`);
+            .attr('transform', `translate(${legendX}, ${margin.top + height + 25})`);
 
         const legendScale = d3.scaleLinear()
             .domain([0, 100])
@@ -1361,8 +1364,9 @@ class Visualizations {
             .attr('x', legendWidth / 2)
             .attr('y', -5)
             .attr('text-anchor', 'middle')
-            .style('font-size', '12px')
+            .style('font-size', '11px')
             .style('font-weight', 'bold')
+            .style('fill', '#333')
             .text('Success Rate');
 
         // Add instructions
@@ -1394,7 +1398,8 @@ class Visualizations {
         const margin = { top: 80, right: 150, bottom: 80, left: 100 };
         const containerRect = container.getBoundingClientRect();
         const width = containerRect.width - margin.left - margin.right;
-        const height = containerRect.height - margin.top - margin.bottom;
+        const minHeight = 350; // Ensure minimum chart height  
+        const height = Math.max(minHeight, containerRect.height - margin.top - margin.bottom);
 
         const svg = d3.select(container)
             .append('svg')
@@ -1548,7 +1553,7 @@ class Visualizations {
             .attr('x', (width + margin.left + margin.right) / 2)
             .attr('y', 25)
             .attr('text-anchor', 'middle')
-            .style('font-size', '18px')
+            .style('font-size', width > 600 ? '18px' : '16px') // Responsive title size
             .style('font-weight', 'bold')
             .style('fill', '#2c3e50')
             .text('🏷️ Tag Evolution Timeline');
@@ -1563,7 +1568,9 @@ class Visualizations {
             .text('Track trending hashtags and content themes over time');
 
         // Create interactive legend with better positioning
-        const legendX = Math.min(width + margin.left + 10, width + margin.left + margin.right - 130);
+        const legendWidth = 130;
+        const availableSpace = width + margin.left + margin.right;
+        const legendX = Math.min(width + margin.left + 10, availableSpace - legendWidth - 10);
         const legend = svg.append('g')
             .attr('transform', `translate(${legendX}, ${margin.top})`);
 
@@ -1679,7 +1686,7 @@ class Visualizations {
             .attr('class', 'legend-background')
             .attr('x', -5)
             .attr('y', -10)
-            .attr('width', 125)
+            .attr('width', Math.min(125, legendWidth - 10)) // Responsive width
             .attr('height', 18)
             .attr('fill', 'none')
             .attr('stroke', 'none')
@@ -1722,9 +1729,9 @@ class Visualizations {
         // Add status indicator (active/inactive)
         legendItems.append('circle')
             .attr('class', 'legend-status')
-            .attr('cx', 110)
+            .attr('cx', Math.min(110, legendWidth - 20)) // Responsive positioning
             .attr('cy', 0)
-            .attr('r', 4)
+            .attr('r', 3)
             .attr('fill', '#4CAF50')
             .attr('stroke', '#2E7D32')
             .attr('stroke-width', 1)
